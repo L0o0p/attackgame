@@ -1,0 +1,22 @@
+// 动画本身的构成
+关键帧
+    时间-属性（位置/尺寸/颜色......）
+关键帧轨道
+    单个属性的关键帧的轨道
+动画剪辑（AnimationClip）
+    命名-长度-n个关键帧轨道
+
+
+// 动画跟对象结合
+动画混合器（AnimationMixer）
+    // 这个AnimationClip通常是从.glb等模型文件导入
+    const moveBlinkClip = new AnimationClip("move-n-blink", -1, [
+      positionKF, // keyframeTrack
+      opacityKF, // keyframeTrack
+    ]);
+    // 关键部分：给模型mesh装动画AnimationClip
+    const mixer = new AnimationMixer(mesh);
+    const action = mixer.clipAction(moveBlinkClip);
+
+// 播放动画
+    action.play()
