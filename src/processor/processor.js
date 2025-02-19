@@ -7,9 +7,11 @@ export class Game {
         this.scene = null;
         this.camera = null;
         this.renderer = null;
-        this.mixer = null;
+        // 为每个模型分别存储 mixer 和 actions
+        this.mixers = new Map();
+        this.modelActions = new Map();
+        this.currentActions = new Map();
         this.clock = null;
-        this.actions = new Map();
         this.currentAction = null;
         this.player = null;
         this.target = null;
@@ -65,34 +67,40 @@ export class Game {
         this.scene.add(this.target);
 
         // 设置动画
-        this.setupAnimations(loadedData2.animations);
+        this.setupEachAnimations(loadedData1.animations,this.player);
+        this.setupEachAnimations(loadedData2.animations,this.target);
 
         // 添加光源
         this.setupLights();
 
         // 设置相机
-        this.camera.position.z = 15;
+        this.camera.position.z = 6;
 
         // 添加事件监听
         this.addEventListeners();
     }
 
-    setupAnimations(animations) {
-        this.mixer = new THREE.AnimationMixer(this.target);
-        
+    setupEachAnimations(animations, mesh) {
+        // 为每个模型创建独立的 mixer
+        const mixer = new THREE.AnimationMixer(mesh);
+        this.mixers.set(mesh, mixer);
+
+        // 为每个模型创建独立的动作映射
+        const actions = new Map();
+        this.modelActions.set(mesh, actions);
+
         animations.forEach(clip => {
             const name = clip.name.replace('_Armature', '');
-            const action = this.mixer.clipAction(clip);
-            this.actions.set(name, action);
+            const action = mixer.clipAction(clip);
+            actions.set(name, action);
         });
 
         // 播放初始动画
-        const idleAction = this.actions.get('idle');
-        if (idleAction) {
-            idleAction.setLoop(THREE.LoopRepeat);
-            this.switchAnimation('idle');
-        }
+        this.switchAnimation(mesh, 'idle');
+        console.log('mesh',this.modelActions);
+        
     }
+
 
     setupLights() {
         const light = new THREE.PointLight(0xffffff, 100, 100);
@@ -120,18 +128,22 @@ export class Game {
         this.keys[event.key.toLowerCase()] = false;
     }
 
-    switchAnimation(newActionName) {
-        const newAction = this.actions.get(newActionName);
+    switchAnimation(mesh, newActionName) {
+        const actions = this.modelActions.get(mesh);
+        if (!actions) return;
+
+        const newAction = actions.get(newActionName);
         if (!newAction) return;
 
-        if (this.currentAction) {
-            this.currentAction.fadeOut(0.2);
+        const currentAction = this.currentActions.get(mesh);
+        if (currentAction) {
+            currentAction.fadeOut(0.2);
         }
 
         newAction.reset();
         newAction.fadeIn(0.2);
         newAction.play();
-        this.currentAction = newAction;
+        this.currentActions.set(mesh, newAction);
     }
 
     updatePlayer() {
@@ -141,13 +153,17 @@ export class Game {
         if (this.keys['d']) this.playerState.velocity.x += this.playerState.speed;
 
         this.player.position.add(this.playerState.velocity);
-        this.playerState.velocity.multiplyScalar(0.9);
+        this.playerState.velocity.multiplyScalar(.1);
     }
 
     checkAttack() {
         if (this.playerState.isAttacking) {
+                this.switchAnimation(this.player, 'attacking');
+            setTimeout(() => {
+                this.switchAnimation(this.player, 'idle');
+            }, 500);
             const distance = this.player.position.distanceTo(this.target.position);
-            if (distance < 3 && !this.targetState.isHit) {
+            if (distance < 1.3 && !this.targetState.isHit) {
                 this.targetState.isHit = true;
                 this.targetState.hitCooldown = 30;
 
@@ -155,12 +171,8 @@ export class Game {
                     .sub(this.player.position).normalize().multiplyScalar(0.5);
                 this.target.position.add(knockbackDirection);
 
-                const hitAction = this.actions.get('hit');
-                if (hitAction) {
-                    hitAction.setLoop(THREE.LoopOnce);
-                    hitAction.clampWhenFinished = true;
-                    this.switchAnimation('hit');
-                }
+                // 使用正确的模型引用播放动画
+                this.switchAnimation(this.target, 'hit');
             }
             this.playerState.isAttacking = false;
         }
@@ -172,22 +184,18 @@ export class Game {
                 this.targetState.hitCooldown--;
             } else {
                 this.targetState.isHit = false;
-                const idleAction = this.actions.get('idle');
-                if (idleAction) {
-                    idleAction.setLoop(THREE.LoopRepeat);
-                    this.switchAnimation('idle');
-                }
+                // 使用正确的模型引用恢复动画
+                this.switchAnimation(this.target, 'idle');
             }
         }
     }
 
     animate() {
         requestAnimationFrame(this.animate);
-        
+
         const delta = this.clock.getDelta();
-        if (this.mixer) {
-            this.mixer.update(delta);
-        }
+        // 更新所有 mixers
+        this.mixers.forEach(mixer => mixer.update(delta));
 
         this.updatePlayer();
         this.checkAttack();
