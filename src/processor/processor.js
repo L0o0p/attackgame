@@ -1,11 +1,19 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-
+const CharacterStates = {
+    IDLE: 'idle',
+    WALK: 'walk',
+    ATTACK: 'attack',
+    HIT: 'hit'
+};
 export class Game {
     constructor() {
         // 初始化类成员变量
         this.scene = null;
         this.camera = null;
+        this.cameraTarget = null;// playerMesh
+        this.cameraOffset = new THREE.Vector3(0, 5, 10);
+        this.smoothness = 0.1; // 相机移动平滑度
         this.renderer = null;
         // 为每个模型分别存储 mixer 和 actions
         this.mixers = new Map();
@@ -19,7 +27,7 @@ export class Game {
         this.playerState = {
             velocity: new THREE.Vector3(),
             speed: 0.1,
-            isAttacking: false
+            characterState: CharacterStates.IDLE,
         };
 
         this.targetState = {
@@ -51,6 +59,12 @@ export class Game {
         document.body.appendChild(this.renderer.domElement);
         this.clock = new THREE.Clock();
 
+        //  新建一个平面
+        this.planeGeometry = new THREE.PlaneGeometry(10, 10).rotateX(-Math.PI / 2);
+        this.planeMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide });
+        this.plane = new THREE.Mesh(this.planeGeometry, this.planeMaterial);
+        this.scene.add(this.plane);
+
         // 加载模型
         const loader = new GLTFLoader();
         const [loadedData1, loadedData2] = await Promise.all([
@@ -67,20 +81,37 @@ export class Game {
         this.scene.add(this.target);
 
         // 设置动画
-        this.setupEachAnimations(loadedData1.animations,this.player);
-        this.setupEachAnimations(loadedData2.animations,this.target);
+        this.setupEachAnimations(loadedData1.animations, this.player);
+        this.setupEachAnimations(loadedData2.animations, this.target);
 
         // 添加光源
         this.setupLights();
 
         // 设置相机
-        this.camera.position.z = 6;
+        this.camera.position.z = 5;
+        // 调整相机位置以便更好地观察场景
+        this.camera.position.set(0, 5, 10);
+        this.camera.lookAt(0, 0, 0);
+        this.cameraTarget = this.player;// playerMesh
 
         // 添加事件监听
         this.addEventListeners();
     }
 
+    updateCamera() {
+        if (this.cameraTarget) {
+            // 计算目标位置
+            const targetPosition = this.cameraTarget.position.clone().add(this.cameraOffset);
+            // 平滑移动相机
+            this.camera.position.lerp(targetPosition, this.smoothness);
+            // 相机始终看向目标
+            this.camera.lookAt(this.cameraTarget.position);
+        }
+    }
+
     setupEachAnimations(animations, mesh) {
+        console.log(animations);
+
         // 为每个模型创建独立的 mixer
         const mixer = new THREE.AnimationMixer(mesh);
         this.mixers.set(mesh, mixer);
@@ -97,8 +128,8 @@ export class Game {
 
         // 播放初始动画
         this.switchAnimation(mesh, 'idle');
-        console.log('mesh',this.modelActions);
-        
+        console.log('mesh', this.modelActions);
+
     }
 
 
@@ -117,15 +148,35 @@ export class Game {
         window.addEventListener('resize', this.onWindowResize);
     }
 
+    // 添加状态切换方法
+    changeState(newState) {
+        // 如果状态没有改变，就不做任何事
+        if (this.playerState.characterState === newState) return;
+
+        // 更新状态
+        this.playerState.characterState = newState;
+        // 切换动画
+        this.switchAnimation(this.player, newState);
+    }
+
     handleKeyDown(event) {
         this.keys[event.key.toLowerCase()] = true;
         if (event.code === 'Space') {
-            this.playerState.isAttacking = true;
+            this.changeState(CharacterStates.ATTACK);
+        }
+        if (['w', 'a', 's', 'd'].includes(event.key.toLowerCase())) {
+            this.changeState(CharacterStates.WALK);
         }
     }
 
     handleKeyUp(event) {
         this.keys[event.key.toLowerCase()] = false;
+
+        // 当没有移动键被按下时，切换回空闲状态
+        const isAnyMovementKeyPressed = ['w', 'a', 's', 'd'].some(key => this.keys[key]);
+        if (!isAnyMovementKeyPressed && this.playerState.characterState === CharacterStates.WALK) {
+            this.changeState(CharacterStates.IDLE);
+        }
     }
 
     switchAnimation(mesh, newActionName) {
@@ -147,18 +198,24 @@ export class Game {
     }
 
     updatePlayer() {
-        if (this.keys['w']) this.playerState.velocity.z -= this.playerState.speed;
-        if (this.keys['s']) this.playerState.velocity.z += this.playerState.speed;
-        if (this.keys['a']) this.playerState.velocity.x -= this.playerState.speed;
-        if (this.keys['d']) this.playerState.velocity.x += this.playerState.speed;
+        // 只处理移动逻辑，不处理动画切换
+        if (this.playerState.characterState === CharacterStates.WALK) {
+            if (this.keys['w']) this.playerState.velocity.z -= this.playerState.speed;
+            if (this.keys['s']) this.playerState.velocity.z += this.playerState.speed;
+            if (this.keys['a']) this.playerState.velocity.x -= this.playerState.speed;
+            if (this.keys['d']) this.playerState.velocity.x += this.playerState.speed;
 
-        this.player.position.add(this.playerState.velocity);
-        this.playerState.velocity.multiplyScalar(.1);
+            this.player.position.add(this.playerState.velocity);
+            this.playerState.velocity.multiplyScalar(0.1);
+
+            const playerRotation = Math.atan2(this.playerState.velocity.x, this.playerState.velocity.z);
+            this.player.rotation.y = playerRotation;
+        }
     }
 
     checkAttack() {
-        if (this.playerState.isAttacking) {
-                this.switchAnimation(this.player, 'attacking');
+        if (this.playerState.characterState == 'attack') {
+            this.switchAnimation(this.player, 'attacking');
             setTimeout(() => {
                 this.switchAnimation(this.player, 'idle');
             }, 500);
@@ -174,7 +231,7 @@ export class Game {
                 // 使用正确的模型引用播放动画
                 this.switchAnimation(this.target, 'hit');
             }
-            this.playerState.isAttacking = false;
+            this.playerState.characterState = 'idle';
         }
     }
 
@@ -192,6 +249,7 @@ export class Game {
 
     animate() {
         requestAnimationFrame(this.animate);
+        console.log('playerStaet', this.playerState.characterState);
 
         const delta = this.clock.getDelta();
         // 更新所有 mixers
@@ -200,6 +258,7 @@ export class Game {
         this.updatePlayer();
         this.checkAttack();
         this.updateTarget();
+        this.updateCamera()
 
         this.renderer.render(this.scene, this.camera);
     }
