@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import {
+    UI
+
+} from '../ui/ui';
 const CharacterStates = {
     IDLE: 'idle',
     WALK: 'walk',
@@ -28,16 +32,25 @@ export class Game {
             velocity: new THREE.Vector3(),
             speed: 0.1,
             characterState: CharacterStates.IDLE,
+            maxHealth: 100,
+            currentHealth: 100,
+            damage: 20,
         };
 
         this.targetState = {
             isHit: false,
             hitCooldown: 0,
             originalColor: 0xff0000,
-            hitColor: 0xff00ff
+            hitColor: 0xff00ff,
+            maxHealth: 100,
+            currentHealth: 100,
+            damage: 20,
         };
 
         this.keys = {};
+
+        // 初始化UI
+        this.ui = new UI(this);
 
         // 绑定方法
         this.animate = this.animate.bind(this);
@@ -108,9 +121,15 @@ export class Game {
             this.camera.lookAt(this.cameraTarget.position);
         }
     }
-
+    applyDamage(isPlayer, amount) {
+        if (isPlayer) {
+            this.playerState.currentHealth = Math.max(0, this.playerState.currentHealth - amount);
+        } else {
+            this.targetState.currentHealth = Math.max(0, this.targetState.currentHealth - amount);
+        }
+        this.ui.updateHealthBars();
+    }
     setupEachAnimations(animations, mesh) {
-        console.log(animations);
 
         // 为每个模型创建独立的 mixer
         const mixer = new THREE.AnimationMixer(mesh);
@@ -128,7 +147,6 @@ export class Game {
 
         // 播放初始动画
         this.switchAnimation(mesh, 'idle');
-        console.log('mesh', this.modelActions);
 
     }
 
@@ -249,7 +267,6 @@ export class Game {
 
     animate() {
         requestAnimationFrame(this.animate);
-        console.log('playerStaet', this.playerState.characterState);
 
         const delta = this.clock.getDelta();
         // 更新所有 mixers
