@@ -8,7 +8,8 @@ const CharacterStates = {
     IDLE: 'idle',
     WALK: 'walk',
     ATTACK: 'attack',
-    HIT: 'hit'
+    HIT: 'hit',
+    DEATH: 'die'
 };
 export class Game {
     constructor() {
@@ -38,6 +39,7 @@ export class Game {
         };
 
         this.targetState = {
+            characterState: CharacterStates.IDLE,
             isHit: false,
             hitCooldown: 0,
             originalColor: 0xff0000,
@@ -121,15 +123,33 @@ export class Game {
             this.camera.lookAt(this.cameraTarget.position);
         }
     }
-    applyDamage(isPlayer, amount) {
+
+    resetHealth() {
+        this.playerState.currentHealth = this.playerState.maxHealth;
+        this.targetState.currentHealth = this.targetState.maxHealth;
+        this.ui.updateHealthBars();
+    }
+
+    applyDamage(isPlayer, damageValue) {
         if (isPlayer) {
-            this.playerState.currentHealth = Math.max(0, this.playerState.currentHealth - amount);
+            this.playerState.currentHealth = Math.max(0, this.playerState.currentHealth - damageValue);
+            if (this.playerState.currentHealth <= 0) this.characterDie(this.playerState, this.player)
         } else {
-            this.targetState.currentHealth = Math.max(0, this.targetState.currentHealth - amount);
+            console.log('target under attack');
+            this.targetState.currentHealth = Math.max(0, this.targetState.currentHealth - damageValue);
+            if (this.targetState.currentHealth <= 0) this.characterDie(this.targetState, this.target)
+            console.log('targetHealth', this.targetState.currentHealth);
         }
         this.ui.updateHealthBars();
     }
+
+    characterDie(characterState, characterMesh) {
+        console.log('characterState,characterMesh', characterState, characterMesh);
+        this.changeState(CharacterStates.DEATH, characterState, characterMesh)
+    }
+
     setupEachAnimations(animations, mesh) {
+        console.log('animations', animations);
 
         // 为每个模型创建独立的 mixer
         const mixer = new THREE.AnimationMixer(mesh);
@@ -142,6 +162,11 @@ export class Game {
         animations.forEach(clip => {
             const name = clip.name.replace('_Armature', '');
             const action = mixer.clipAction(clip);
+            if (name === 'die') {
+                console.log('clipname', name);
+                action.clampWhenFinished = true; // 关键属性：动画结束时停在最后一帧
+                action.loop = THREE.LoopOnce; // 只播放一次
+            }
             actions.set(name, action);
         });
 
@@ -167,23 +192,25 @@ export class Game {
     }
 
     // 添加状态切换方法
-    changeState(newState) {
+    changeState(newState, characterState, characterMesh) {
         // 如果状态没有改变，就不做任何事
-        if (this.playerState.characterState === newState) return;
+        if (characterState.characterState === newState) return;
 
         // 更新状态
-        this.playerState.characterState = newState;
+        characterState.characterState = newState;
         // 切换动画
-        this.switchAnimation(this.player, newState);
+        this.switchAnimation(characterMesh, newState);
     }
 
     handleKeyDown(event) {
         this.keys[event.key.toLowerCase()] = true;
+        // 如果角色死亡就直接返回
+        if (this.playerState.characterState === CharacterStates.DEATH) return
         if (event.code === 'Space') {
-            this.changeState(CharacterStates.ATTACK);
+            this.changeState(CharacterStates.ATTACK, this.playerState, this.player);
         }
         if (['w', 'a', 's', 'd'].includes(event.key.toLowerCase())) {
-            this.changeState(CharacterStates.WALK);
+            this.changeState(CharacterStates.WALK, this.playerState, this.player);
         }
     }
 
@@ -193,7 +220,7 @@ export class Game {
         // 当没有移动键被按下时，切换回空闲状态
         const isAnyMovementKeyPressed = ['w', 'a', 's', 'd'].some(key => this.keys[key]);
         if (!isAnyMovementKeyPressed && this.playerState.characterState === CharacterStates.WALK) {
-            this.changeState(CharacterStates.IDLE);
+            this.changeState(CharacterStates.IDLE, this.playerState, this.player);
         }
     }
 
@@ -216,6 +243,7 @@ export class Game {
     }
 
     updatePlayer() {
+        // 【目标如果已死亡，就不要再让它切换动画】
         // 只处理移动逻辑，不处理动画切换
         if (this.playerState.characterState === CharacterStates.WALK) {
             if (this.keys['w']) this.playerState.velocity.z -= this.playerState.speed;
@@ -233,7 +261,7 @@ export class Game {
 
     checkAttack() {
         if (this.playerState.characterState == 'attack') {
-            this.switchAnimation(this.player, 'attacking');
+            this.switchAnimation(this.player, 'attack');
             setTimeout(() => {
                 this.switchAnimation(this.player, 'idle');
             }, 500);
@@ -248,12 +276,18 @@ export class Game {
 
                 // 使用正确的模型引用播放动画
                 this.switchAnimation(this.target, 'hit');
+
+                this.applyDamage(false, 50)
             }
             this.playerState.characterState = 'idle';
         }
     }
 
     updateTarget() {
+        // 【目标如果已死亡，就不要再让它切换动画】
+        if (this.targetState.characterState === CharacterStates.DEATH) {
+            return;
+        }
         if (this.targetState.isHit) {
             if (this.targetState.hitCooldown > 0) {
                 this.targetState.hitCooldown--;
