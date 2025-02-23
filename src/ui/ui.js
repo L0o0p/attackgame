@@ -37,6 +37,37 @@ export class UI {
             font-weight: bold;
         `;
 
+        // 创建NPC血条容器
+        this.player1HealthBar = document.createElement('div');
+        this.player1HealthBar.style.cssText = `
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            width: 200px;
+            height: 20px;
+            background-color: #333;
+            border: 2px solid #000;
+        `;
+
+        // 创建NPC血条填充
+        this.player1HealthFill = document.createElement('div');
+        this.player1HealthFill.style.cssText = `
+            width: 100%;
+            height: 100%;
+            background-color: #ff0000;
+            transition: width 0.3s ease;
+        `;
+        
+        // 创建NPC血量文本
+        this.player1HealthText = document.createElement('div');
+        this.player1HealthText.style.cssText = `
+            position: absolute;
+            top: -20px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+        `;
+
         // 创建目标血条容器
         this.targetHealthBar = document.createElement('div');
         this.targetHealthBar.style.cssText = `
@@ -73,10 +104,13 @@ export class UI {
         this.playerHealthBar.appendChild(this.playerHealthText);
         this.targetHealthBar.appendChild(this.targetHealthFill);
         this.targetHealthBar.appendChild(this.targetHealthText);
+        this.player1HealthBar.appendChild(this.player1HealthFill);
+        this.player1HealthBar.appendChild(this.player1HealthText);
 
         // 添加到文档
         document.body.appendChild(this.playerHealthBar);
         document.body.appendChild(this.targetHealthBar);
+        document.body.appendChild(this.player1HealthBar);
     }
 
     setupControlButtons() {
@@ -124,9 +158,13 @@ export class UI {
         this.playerHealthFill.style.width = `${playerHealthPercent}%`;
         this.playerHealthText.textContent = `Player: ${this.game.playerState.currentHealth}/${this.game.playerState.maxHealth}`;
 
-        // 更新目标血条
-        const targetHealthPercent = (this.game.targetState.currentHealth / this.game.targetState.maxHealth) * 100;
-        this.targetHealthFill.style.width = `${targetHealthPercent}%`;
-        this.targetHealthText.textContent = `Target: ${this.game.targetState.currentHealth}/${this.game.targetState.maxHealth}`;
+        // // 更新目标血条
+        // const targetHealthPercent = (this.game.targetState.currentHealth / this.game.targetState.maxHealth) * 100;
+        // this.targetHealthFill.style.width = `${targetHealthPercent}%`;
+        // this.targetHealthText.textContent = `Target: ${this.game.targetState.currentHealth}/${this.game.targetState.maxHealth}`;
+
+        const player1Percent = (this.game.player1.attributes.currentHealth / this.game.player1.attributes.maxHealth) * 100;
+        this.player1HealthFill.style.width = `${player1Percent}%`;
+        this.player1HealthText.textContent = `player1: ${this.game.player1.attributes.currentHealth}/${this.game.player1.attributes.maxHealth}`;
     }
 }

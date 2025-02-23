@@ -1,10 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import {
-    UI
+import { UI } from '../ui/ui';
+import { Character } from './entity/character';
 
-} from '../ui/ui';
-const CharacterStates = {
+export const CharacterStates = {
     IDLE: 'idle',
     WALK: 'walk',
     ATTACK: 'attack',
@@ -38,12 +37,21 @@ export class Game {
             damage: 20,
         };
 
+        this.playerState1 = {
+            velocity: new THREE.Vector3(),
+            speed: 0.1,
+            characterState: CharacterStates.IDLE,
+            maxHealth: 100,
+            currentHealth: 100,
+            damage: 20,
+            isHit: false,
+            hitCooldown: 0,
+        };
+
         this.targetState = {
             characterState: CharacterStates.IDLE,
             isHit: false,
             hitCooldown: 0,
-            originalColor: 0xff0000,
-            hitColor: 0xff00ff,
             maxHealth: 100,
             currentHealth: 100,
             damage: 20,
@@ -82,23 +90,38 @@ export class Game {
 
         // 加载模型
         const loader = new GLTFLoader();
-        const [loadedData1, loadedData2] = await Promise.all([
+        const [loadedData1, loadedData2, loadedData3] = await Promise.all([
+            loader.loadAsync('/models/gamelike.glb'),
             loader.loadAsync('/models/gamelike.glb'),
             loader.loadAsync('/models/gamelike.glb')
         ]);
 
         // 设置玩家和目标
         this.player = loadedData1.scene;
+        this.player1 = loadedData3.scene;
         this.target = loadedData2.scene;
         this.target.position.x = 5;
+        this.player1.position.x = 2;
 
         this.scene.add(this.player);
         this.scene.add(this.target);
+        this.scene.add(this.player1);
 
         // 设置动画
         this.setupEachAnimations(loadedData1.animations, this.player);
         this.setupEachAnimations(loadedData2.animations, this.target);
 
+        this.player1 = new Character(this.player1, this.playerState1)
+        this.player1.setupActions(loadedData3.animations)
+
+        // 设置环境部份
+        this.setupEnv()
+
+        // 添加事件监听
+        this.addEventListeners();
+    }
+
+    setupEnv() {
         // 添加光源
         this.setupLights();
 
@@ -108,9 +131,6 @@ export class Game {
         this.camera.position.set(0, 5, 10);
         this.camera.lookAt(0, 0, 0);
         this.cameraTarget = this.player;// playerMesh
-
-        // 添加事件监听
-        this.addEventListeners();
     }
 
     updateCamera() {
@@ -130,21 +150,26 @@ export class Game {
         this.ui.updateHealthBars();
     }
 
-    applyDamage(isPlayer, damageValue) {
-        if (isPlayer) {
+    applyDamage(damagedCharacter, damageValue) {
+        console.log('damagedCharacter',damagedCharacter);
+        
+        if (damagedCharacter === 'player') {
+        console.log('player under attacked');
             this.playerState.currentHealth = Math.max(0, this.playerState.currentHealth - damageValue);
             if (this.playerState.currentHealth <= 0) this.characterDie(this.playerState, this.player)
-        } else {
-            console.log('target under attack');
+        } else if (damagedCharacter === 'target') {
+        console.log('target under attacked');
             this.targetState.currentHealth = Math.max(0, this.targetState.currentHealth - damageValue);
             if (this.targetState.currentHealth <= 0) this.characterDie(this.targetState, this.target)
-            console.log('targetHealth', this.targetState.currentHealth);
+        } else {
+        console.log('player1 under attacked');
+            this.player1.attributes.currentHealth = Math.max(0, this.player1.attributes.currentHealth - damageValue);
+            if (this.player1.attributes.currentHealth <= 0) this.player1.changeState('die')
         }
         this.ui.updateHealthBars();
     }
 
     characterDie(characterState, characterMesh) {
-        console.log('characterState,characterMesh', characterState, characterMesh);
         this.changeState(CharacterStates.DEATH, characterState, characterMesh)
     }
 
@@ -163,7 +188,6 @@ export class Game {
             const name = clip.name.replace('_Armature', '');
             const action = mixer.clipAction(clip);
             if (name === 'die') {
-                console.log('clipname', name);
                 action.clampWhenFinished = true; // 关键属性：动画结束时停在最后一帧
                 action.loop = THREE.LoopOnce; // 只播放一次
             }
@@ -225,6 +249,7 @@ export class Game {
     }
 
     switchAnimation(mesh, newActionName) {
+
         const actions = this.modelActions.get(mesh);
         if (!actions) return;
 
@@ -277,9 +302,26 @@ export class Game {
                 // 使用正确的模型引用播放动画
                 this.switchAnimation(this.target, 'hit');
 
-                this.applyDamage(false, 50)
+                this.applyDamage('target', 50)
             }
             this.playerState.characterState = 'idle';
+
+            const distance1 = this.player.position.distanceTo(this.player1.mesh.position);
+            console.log('this.player1.mesh',this.player1.mesh);
+            
+            if (distance1 < 1.3 && !this.player1.attributes.isHit) {
+                this.player1.attributes.isHit = true;
+                this.player1.attributes.hitCooldown = 30;
+
+                const knockbackDirection = this.player1.mesh.position.clone()
+                    .sub(this.player.position).normalize().multiplyScalar(0.5);
+                this.player1.mesh.position.add(knockbackDirection);
+
+                // 使用正确的模型引用播放动画
+                this.player1.switchAnimation('hit');
+
+                this.applyDamage('player1', 50)
+            }
         }
     }
 
@@ -307,6 +349,7 @@ export class Game {
         this.mixers.forEach(mixer => mixer.update(delta));
 
         this.updatePlayer();
+        this.player1.updateAll();
         this.checkAttack();
         this.updateTarget();
         this.updateCamera()
