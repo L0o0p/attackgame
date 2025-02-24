@@ -12,7 +12,6 @@ export class Character {
         this.characterName = characterName
         this.mesh = mesh;
         this.attributes = attributes;// 属性含状态
-        console.log('attributes', this.attributes);
 
         this.actions = new Map();;
         this.currentAction = null;
@@ -62,6 +61,8 @@ export class Character {
         // 更新状态
         this.attributes.characterState = newState;
         // 切换动画
+        console.log(this.characterName,newState);
+        
         this.switchAnimation(newState);
     }
 

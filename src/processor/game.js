@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { UI } from '../ui/ui';
-import { Character } from './entity/character';
+import { Enemy } from './entity/enemy';
 import { Player } from './entity/player';
 
 export const CharacterStates = {
@@ -37,38 +37,38 @@ export class Game {
             characterState: CharacterStates.IDLE,
             maxHealth: 100,
             currentHealth: 100,
-            damage: 20,
+            damage: 0,
         };
 
-        this.playerState1 = {
+        this.npc1_Attributes = {
             velocity: new THREE.Vector3(),
-            speed: 0.1,
+            speed: 0.1/2,
             characterState: CharacterStates.IDLE,
             maxHealth: 100,
             currentHealth: 100,
-            damage: 20,
+            damage: 0,
+            isHit: false,
+            hitCooldown: 0/2,
+        };
+
+        this.npc2_Attributes = {
+            velocity: new THREE.Vector3(),
+            speed: 0.1/2,
+            characterState: CharacterStates.IDLE,
+            maxHealth: 100,
+            currentHealth: 100,
+            damage: 0,
             isHit: false,
             hitCooldown: 0,
         };
 
-        this.playerState2 = {
+        this.npc3_Attributes = {
             velocity: new THREE.Vector3(),
-            speed: 0.1,
+            speed: 0.1/2,
             characterState: CharacterStates.IDLE,
             maxHealth: 100,
             currentHealth: 100,
-            damage: 20,
-            isHit: false,
-            hitCooldown: 0,
-        };
-
-        this.playerState3 = {
-            velocity: new THREE.Vector3(),
-            speed: 0.1,
-            characterState: CharacterStates.IDLE,
-            maxHealth: 100,
-            currentHealth: 100,
-            damage: 20,
+            damage: 0,
             isHit: false,
             hitCooldown: 0,
         };
@@ -115,9 +115,9 @@ export class Game {
         const npc1Mesh = loadedData1.scene;
         const npc2Mesh = loadedData2.scene;
         const npc3Mesh = loadedData3.scene;
-        npc1Mesh.position.x = 2;
-        npc2Mesh.position.x = 4;
-        npc3Mesh.position.x = -2;
+        npc1Mesh.position.x = 4;
+        npc2Mesh.position.set(4, 0, 4);
+        npc3Mesh.position.x = -4;
 
         this.scene.add(this.playerMesh);
         this.scene.add(npc1Mesh);
@@ -134,25 +134,25 @@ export class Game {
             , this.keys
         )
 
-        this.npc1 = new Character(
+        this.npc1 = new Enemy(
             'npc1',
             npc1Mesh,// 模型
             loadedData1.animations,// 动画
-            this.playerState1 // 参数
+            this.npc1_Attributes // 参数
         )
 
-        this.npc2 = new Character(
+        this.npc2 = new Enemy(
             'npc2',
             npc2Mesh,// 模型
             loadedData2.animations,// 动画
-            this.playerState2 // 参数
+            this.npc2_Attributes // 参数
         )
 
-        this.npc3 = new Character(
+        this.npc3 = new Enemy(
             'npc3',
             npc3Mesh,// 模型
             loadedData3.animations,// 动画
-            this.playerState3 // 参数
+            this.npc3_Attributes // 参数
         )
 
         this.allNpc.push(this.npc1, this.npc2, this.npc3)
@@ -237,20 +237,16 @@ export class Game {
     }
 
     checkAttack() {
-        if (this.playerState.characterState == 'attack') {
+        if (this.player.attributes.characterState == 'attack') {
             this.player.switchAnimation( 'attack');
             setTimeout(() => {
                 this.player.switchAnimation( 'idle');
             }, 500);
 
-            this.playerState.characterState = 'idle';
-            console.log('allnpc', this.allNpc);
+            this.player.attributes.characterState = 'idle';
 
             this.allNpc.forEach(npc => {
-                console.log('npc', npc);
-
                 const distance1 = this.player.mesh.position.distanceTo(npc.mesh.position);
-                console.log('npc.mesh', npc.mesh);
 
                 if (distance1 < 1.3 && !npc.attributes.isHit) {
                     npc.attributes.isHit = true;
@@ -279,9 +275,13 @@ export class Game {
 
         // this.updatePlayer();
         this.player.updateAll()
-        this.npc1.updateAll();
-        this.npc2.updateAll();
-        this.npc3.updateAll();
+        // this.npc1.updateAll();
+        // this.npc2.updateAll();
+        // this.npc3.updateAll();
+        this.allNpc.forEach(npc => {
+            npc.updateBehavior(this.player, this);
+            npc.updateAll();
+        });
         this.checkAttack();
         this.updateCamera()
 
