@@ -1,12 +1,15 @@
 // 集成角色模型网格、动画、状态管理
 import * as THREE from 'three';
-import { CharacterStates } from '../processor';
+import { CharacterStates } from '../game';
 
 export class Character {
     constructor(
+        characterName,
         mesh,
+        animations,
         attributes,
     ) {
+        this.characterName = characterName
         this.mesh = mesh;
         this.attributes = attributes;// 属性含状态
         console.log('attributes', this.attributes);
@@ -15,6 +18,7 @@ export class Character {
         this.currentAction = null;
         this.mixer = new THREE.AnimationMixer(this.mesh);
         this.clock = new THREE.Clock();
+        this.setupActions(animations)
     }
 
     setupActions(animations) {

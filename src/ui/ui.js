@@ -2,169 +2,123 @@ export class UI {
     constructor(game) {
         this.game = game;
         this.setupHealthBars();
-        this.setupControlButtons();
+    }
+
+    createHealthBar(config) {
+        const container = document.createElement('div');
+        container.style.cssText = `
+        position: absolute;
+        top: ${config.top}px;
+        left: ${config.left}px;
+        width: 200px;
+        height: 20px;
+        background-color: #333;
+        border: 2px solid #000;
+    `;
+
+        const fill = document.createElement('div');
+        fill.style.cssText = `
+        width: 100%;
+        height: 100%;
+        background-color: ${config.fillColor || '#ff0000'};
+        transition: width 0.3s ease;
+    `;
+
+        const text = document.createElement('div');
+        text.style.cssText = `
+        position: absolute;
+        top: -20px;
+        color: white;
+        font-family: Arial, sans-serif;
+        font-weight: bold;
+    `;
+        // 你可以先写个初始值
+        text.textContent = `${config.name} HP: ???`;
+
+        container.appendChild(fill);
+        container.appendChild(text);
+        document.body.appendChild(container);
+
+        // 返回这几个DOM节点，以后更新时用
+        return { container, fill, text };
     }
 
     setupHealthBars() {
-        // 创建玩家血条容器
-        this.playerHealthBar = document.createElement('div');
-        this.playerHealthBar.style.cssText = `
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            width: 200px;
-            height: 20px;
-            background-color: #333;
-            border: 2px solid #000;
-        `;
+        // 先存一下要生成血条的角色配置
+        const barConfigs = [
+            {
+                name: 'Player',
+                top: 20,
+                left: 20,
+                fillColor: '#00ff00', // 也可以再选别的颜色
+                // 可能还可以加别的扩展
+            },
+            {
+                name: 'npc1',
+                top: 80,
+                left: 20,
+                fillColor: '#ff0000',
+            },
+            {
+                name: 'npc2',
+                top: 140,
+                left: 20,
+                fillColor: '#ff0000',
+            },
+            {
+                name: 'npc3',
+                top: 200,
+                left: 20,
+                fillColor: '#ff0000',
+            },
+            // 如果以后还有别的 NPC，就继续添加
+        ];
 
-        // 创建玩家血条填充
-        this.playerHealthFill = document.createElement('div');
-        this.playerHealthFill.style.cssText = `
-            width: 100%;
-            height: 100%;
-            background-color: #ff0000;
-            transition: width 0.3s ease;
-        `;
-        
-        // 创建玩家血量文本
-        this.playerHealthText = document.createElement('div');
-        this.playerHealthText.style.cssText = `
-            position: absolute;
-            top: -20px;
-            color: white;
-            font-family: Arial, sans-serif;
-            font-weight: bold;
-        `;
+        // 用一个 Map 或对象来存放“角色名”-“血条DOM”的对应关系
+        this.healthBars = new Map();
 
-        // 创建NPC血条容器
-        this.player1HealthBar = document.createElement('div');
-        this.player1HealthBar.style.cssText = `
-            position: absolute;
-            top: 80px;
-            left: 20px;
-            width: 200px;
-            height: 20px;
-            background-color: #333;
-            border: 2px solid #000;
-        `;
-
-        // 创建NPC血条填充
-        this.player1HealthFill = document.createElement('div');
-        this.player1HealthFill.style.cssText = `
-            width: 100%;
-            height: 100%;
-            background-color: #ff0000;
-            transition: width 0.3s ease;
-        `;
-        
-        // 创建NPC血量文本
-        this.player1HealthText = document.createElement('div');
-        this.player1HealthText.style.cssText = `
-            position: absolute;
-            top: -20px;
-            color: white;
-            font-family: Arial, sans-serif;
-            font-weight: bold;
-        `;
-
-        // 创建目标血条容器
-        this.targetHealthBar = document.createElement('div');
-        this.targetHealthBar.style.cssText = `
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 200px;
-            height: 20px;
-            background-color: #333;
-            border: 2px solid #000;
-        `;
-
-        // 创建目标血条填充
-        this.targetHealthFill = document.createElement('div');
-        this.targetHealthFill.style.cssText = `
-            width: 100%;
-            height: 100%;
-            background-color: #ff0000;
-            transition: width 0.3s ease;
-        `;
-
-        // 创建目标血量文本
-        this.targetHealthText = document.createElement('div');
-        this.targetHealthText.style.cssText = `
-            position: absolute;
-            top: -20px;
-            color: white;
-            font-family: Arial, sans-serif;
-            font-weight: bold;
-        `;
-
-        // 组装UI元素
-        this.playerHealthBar.appendChild(this.playerHealthFill);
-        this.playerHealthBar.appendChild(this.playerHealthText);
-        this.targetHealthBar.appendChild(this.targetHealthFill);
-        this.targetHealthBar.appendChild(this.targetHealthText);
-        this.player1HealthBar.appendChild(this.player1HealthFill);
-        this.player1HealthBar.appendChild(this.player1HealthText);
-
-        // 添加到文档
-        document.body.appendChild(this.playerHealthBar);
-        document.body.appendChild(this.targetHealthBar);
-        document.body.appendChild(this.player1HealthBar);
-    }
-
-    setupControlButtons() {
-        const buttonContainer = document.createElement('div');
-        buttonContainer.style.cssText = `
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-        `;
-
-        const damagePlayerBtn = this.createButton('Damage Player', () => this.game.applyDamage(true, 10));
-        const damageTargetBtn = this.createButton('Damage Target', () => this.game.applyDamage(false, 10));
-        const healPlayerBtn = this.createButton('Heal Player', () => this.game.heal(true, 10));
-        const healTargetBtn = this.createButton('Heal Target', () => this.game.heal(false, 10));
-        const resetBtn = this.createButton('Reset All', () => this.game.resetHealth());
-
-        buttonContainer.append(
-            damagePlayerBtn,
-            damageTargetBtn,
-            healPlayerBtn,
-            healTargetBtn,
-            resetBtn
-        );
-        document.body.appendChild(buttonContainer);
-    }
-
-    createButton(text, onClick) {
-        const button = document.createElement('button');
-        button.textContent = text;
-        button.style.cssText = `
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-        `;
-        button.addEventListener('click', onClick);
-        return button;
+        // 逐个创建
+        barConfigs.forEach(config => {
+            const { container, fill, text } = this.createHealthBar(config);
+            // 存一下，以备后续更新
+            this.healthBars.set(config.name, { container, fill, text });
+        });
     }
 
     updateHealthBars() {
         // 更新玩家血条
-        const playerHealthPercent = (this.game.playerState.currentHealth / this.game.playerState.maxHealth) * 100;
-        this.playerHealthFill.style.width = `${playerHealthPercent}%`;
-        this.playerHealthText.textContent = `Player: ${this.game.playerState.currentHealth}/${this.game.playerState.maxHealth}`;
+        const playerBar = this.healthBars.get('Player');
+        if (playerBar) {
+            const playerHealthPercent = (this.game.playerState.currentHealth / this.game.playerState.maxHealth) * 100;
+            playerBar.fill.style.width = `${playerHealthPercent}%`;
+            playerBar.text.textContent = `Player: ${this.game.playerState.currentHealth}/${this.game.playerState.maxHealth}`;
+        }
 
-        // // 更新目标血条
-        // const targetHealthPercent = (this.game.targetState.currentHealth / this.game.targetState.maxHealth) * 100;
-        // this.targetHealthFill.style.width = `${targetHealthPercent}%`;
-        // this.targetHealthText.textContent = `Target: ${this.game.targetState.currentHealth}/${this.game.targetState.maxHealth}`;
+        // 更新 npc1
+        const npc1Bar = this.healthBars.get('npc1');
+        if (npc1Bar) {
+            const { currentHealth, maxHealth } = this.game.npc1.attributes;
+            const npc1Percent = (currentHealth / maxHealth) * 100;
+            npc1Bar.fill.style.width = `${npc1Percent}%`;
+            npc1Bar.text.textContent = `npc1: ${currentHealth}/${maxHealth}`;
+        }
 
-        const player1Percent = (this.game.player1.attributes.currentHealth / this.game.player1.attributes.maxHealth) * 100;
-        this.player1HealthFill.style.width = `${player1Percent}%`;
-        this.player1HealthText.textContent = `player1: ${this.game.player1.attributes.currentHealth}/${this.game.player1.attributes.maxHealth}`;
+        // 更新 npc2
+        const npc2Bar = this.healthBars.get('npc2');
+        if (npc2Bar) {
+            const { currentHealth, maxHealth } = this.game.npc2.attributes;
+            const npc2Percent = (currentHealth / maxHealth) * 100;
+            npc2Bar.fill.style.width = `${npc2Percent}%`;
+            npc2Bar.text.textContent = `npc2: ${currentHealth}/${maxHealth}`;
+        }
+
+        // 更新 npc3
+        const npc3Bar = this.healthBars.get('npc3');
+        if (npc3Bar) {
+            const { currentHealth, maxHealth } = this.game.npc3.attributes;
+            const npc3Percent = (currentHealth / maxHealth) * 100;
+            npc3Bar.fill.style.width = `${npc3Percent}%`;
+            npc3Bar.text.textContent = `npc3: ${currentHealth}/${maxHealth}`;
+        }
     }
 }
