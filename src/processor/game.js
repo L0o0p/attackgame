@@ -42,33 +42,33 @@ export class Game {
 
         this.npc1_Attributes = {
             velocity: new THREE.Vector3(),
-            speed: 0.1/2,
+            speed: 0.1 / 2,
             characterState: CharacterStates.IDLE,
             maxHealth: 100,
             currentHealth: 100,
-            damage: 0,
+            damage: 15,
             isHit: false,
-            hitCooldown: 0/2,
+            hitCooldown: 0 / 2,
         };
 
         this.npc2_Attributes = {
             velocity: new THREE.Vector3(),
-            speed: 0.1/2,
+            speed: 0.1 / 2,
             characterState: CharacterStates.IDLE,
             maxHealth: 100,
             currentHealth: 100,
-            damage: 0,
+            damage: 15,
             isHit: false,
             hitCooldown: 0,
         };
 
         this.npc3_Attributes = {
             velocity: new THREE.Vector3(),
-            speed: 0.1/2,
+            speed: 0.1 / 2,
             characterState: CharacterStates.IDLE,
             maxHealth: 100,
             currentHealth: 100,
-            damage: 0,
+            damage: 15,
             isHit: false,
             hitCooldown: 0,
         };
@@ -192,10 +192,9 @@ export class Game {
         this.ui.updateHealthBars();
     }
 
-    applyDamage(damagedCharacter, damageValue) {
-        console.log('damagedCharacter', damagedCharacter);
-            damagedCharacter.attributes.currentHealth = Math.max(0, damagedCharacter.attributes.currentHealth - damageValue);
-            if (damagedCharacter.attributes.currentHealth <= 0) damagedCharacter.changeState('die')
+    applyDamage(damagedCharacter, damageValue) {// 应用伤害
+        damagedCharacter.attributes.currentHealth = Math.max(0, damagedCharacter.attributes.currentHealth - damageValue);
+        if (damagedCharacter.attributes.currentHealth <= 0) damagedCharacter.transitionTo('die')
         this.ui.updateHealthBars();
     }
 
@@ -219,10 +218,10 @@ export class Game {
         // 如果角色死亡就直接返回
         if (this.playerState.characterState === CharacterStates.DEATH) return
         if (event.code === 'Space') {
-            this.player.changeState(CharacterStates.ATTACK);
+            this.player.transitionTo(CharacterStates.ATTACK);
         }
         if (['w', 'a', 's', 'd'].includes(event.key.toLowerCase())) {
-            this.player.changeState(CharacterStates.WALK);
+            this.player.transitionTo(CharacterStates.WALK);
         }
     }
 
@@ -232,38 +231,79 @@ export class Game {
         // 当没有移动键被按下时，切换回空闲状态
         const isAnyMovementKeyPressed = ['w', 'a', 's', 'd'].some(key => this.keys[key]);
         if (!isAnyMovementKeyPressed && this.playerState.characterState === CharacterStates.WALK) {
-            this.player.changeState(CharacterStates.IDLE);
+            this.player.transitionTo(CharacterStates.IDLE);
         }
     }
 
     checkAttack() {
         if (this.player.attributes.characterState == 'attack') {
-            this.player.switchAnimation( 'attack');
-            setTimeout(() => {
-                this.player.switchAnimation( 'idle');
-            }, 500);
+            // if (!this.player.attributes.isAttacking) {
+            //     this.player.attributes.isAttacking = true; // 确保只判定一次
+                // this.player.switchAnimation('attack');
+                // setTimeout(() => {
+                //     this.player.transitionTo('idle');
+                // }, 500);
 
-            this.player.attributes.characterState = 'idle';
+                // this.player.attributes.characterState = 'idle';
 
-            this.allNpc.forEach(npc => {
-                const distance1 = this.player.mesh.position.distanceTo(npc.mesh.position);
+                this.allNpc.forEach(npc => {
+                    const distance = this.player.mesh.position.distanceTo(npc.mesh.position);
 
-                if (distance1 < 1.3 && !npc.attributes.isHit) {
-                    npc.attributes.isHit = true;
-                    npc.attributes.hitCooldown = 30;
+                    if (distance < 1.3 && !npc.attributes.isHit) {
+                        // if (distance < 1.3 && npc.attributes.characterState!=='hit') {
+                        npc.attributes.isHit = true;
+                        // npc.attributes.characterState ='hit'
+                        npc.attributes.hitCooldown = 90;
 
-                    const knockbackDirection = npc.mesh.position.clone()
-                        .sub(this.player.mesh.position).normalize().multiplyScalar(0.5);
-                    npc.mesh.position.add(knockbackDirection);
+                        const knockbackDirection = npc.mesh.position.clone()
+                            .sub(this.player.mesh.position).normalize().multiplyScalar(0.5);
+                        npc.mesh.position.add(knockbackDirection);
+
+                        // 使用正确的模型引用播放动画
+                        // npc.switchAnimation('hit');
+                        npc.transitionTo('hit');
+
+                        this.applyDamage(npc, 10)
+                    }
+                })
+                console.log(this.player.characterName, this.player.attributes.characterState);
+            // }
+        }
+
+        this.allNpc.forEach(npc => {
+            if (npc.attributes.characterState == 'attack') {
+                const distance = npc.mesh.position.distanceTo(this.player.mesh.position);
+
+                if (distance < 1.3 && !this.player.attributes.isHit) {
+                    // if (distance < 1.3 && !npc.attributes.characterState==='hit') {
+                    this.player.attributes.isHit = true;
+                    // npc.attributes.characterState ='hit'
+                    this.player.attributes.hitCooldown = 90;
+
+                    // const knockbackDirection = this.player.mesh.position.clone()
+                    //     .sub(npc.mesh.position).normalize().multiplyScalar(0.2);
+                    // this.player.mesh.position.add(knockbackDirection);
 
                     // 使用正确的模型引用播放动画
-                    npc.switchAnimation('hit');
+                    this.player.transitionTo('hit');
 
-                    this.applyDamage(npc, 50)
+                    // const newAction = this.player.actions.get('hit');
+                    // if (!newAction) return;
+
+                    // if (this.player.currentAction && this.player.currentAction !== newAction) {
+                    //     this.player.currentAction.fadeOut(0.2);
+                    // }
+                    // newAction.reset();
+                    // newAction.fadeIn(0.2);
+                    // newAction.play();
+
+                    // this.player.currentAction = newAction;
+
+                    // this.applyDamage(this.player, 50)
                 }
-            })
+            }
+        })
 
-        }
     }
 
     animate() {

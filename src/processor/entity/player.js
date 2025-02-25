@@ -16,30 +16,17 @@ export class Player extends Character {
             characterName,
             mesh,
             animations,
-            attributes
+            attributes,
         );
-
         // 额外
         this.keys = keys
+        this.attackig = false
     }
 
     // 改写
     updateCharacter() {
         // 【目标如果已死亡，就不要再让它切换动画】
-        if (this.attributes.characterState === CharacterStates.DEATH) {
-            return;
-        }
-
-        if (this.attributes.isHit) {
-            if (this.attributes.hitCooldown > 0) {
-                this.attributes.hitCooldown--;
-            } else {
-                this.attributes.isHit = false;
-                // 使用正确的模型引用恢复动画
-                this.switchAnimation('idle');
-            }
-        }
-        // 【目标如果已死亡，就不要再让它切换动画】
+        super.updateCharacter()
         // 只处理移动逻辑，不处理动画切换
         if (this.attributes.characterState === CharacterStates.WALK) {
             if (this.keys['w']) this.attributes.velocity.z -= this.attributes.speed;

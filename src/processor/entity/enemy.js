@@ -10,10 +10,10 @@ export class Enemy extends Character {
         attributes,
     ) {
         super(characterName, mesh, animations, attributes);
-        this.attackRange = 0.8; // 攻击范围
+        this.attackRange = 1.3; // 攻击范围
         this.detectionRange = 2.5; // 检测范围
         this.attackCooldown = 0; // 实际攻击冷却
-        this.maxAttackCooldown = 120; // 攻击冷却时间（帧数）
+        this.maxAttackCooldown = 80; // 攻击冷却时间（帧数）
     }
 
     updateBehavior(player, game) {
@@ -29,7 +29,6 @@ export class Enemy extends Character {
         if (distanceToPlayer <= this.attackRange && this.attackCooldown <= 0) {
             // 如果已经死亡，不执行任何行为
             if (player.attributes.characterState === CharacterStates.DEATH) return;
-            console.log('1');
             this.attack(player, game);
         }
         // 在检测范围内但超出攻击范围时移动向玩家
@@ -41,9 +40,9 @@ export class Enemy extends Character {
             this.moveTowardsPlayer(player);
         }
         // 否则保持空闲状态
-        // else {
-        //     this.changeState(CharacterStates.IDLE);
-        // }
+        else if (distanceToPlayer > this.detectionRange) {
+            this.transitionTo(CharacterStates.IDLE);
+        }
 
         // 更新攻击冷却
         if (this.attackCooldown > 0) {
@@ -56,22 +55,16 @@ export class Enemy extends Character {
     }
 
     attack(player, game) {
-        this.changeState(CharacterStates.ATTACK);
+        this.transitionTo(CharacterStates.ATTACK);
         this.attackCooldown = this.maxAttackCooldown;
 
         // 造成伤害
+        // player.underAttack(this);
         game.applyDamage(player, this.attributes.damage);
-
-        // 攻击动画结束后恢复idle状态
-        setTimeout(() => {
-            if (this.attributes.characterState === CharacterStates.ATTACK) {
-                this.changeState(CharacterStates.IDLE);
-            }
-        }, 400);
     }
 
     moveTowardsPlayer(player) {
-        this.changeState(CharacterStates.WALK);
+        this.transitionTo(CharacterStates.WALK);
 
         // 计算方向向量
         const direction = new THREE.Vector3()
