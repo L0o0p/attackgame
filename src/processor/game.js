@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { UI } from '../ui/ui';
 import { Enemy } from './entity/enemy';
 import { Player } from './entity/player';
+import { Weapon } from './entity/weapon';
 
 export const CharacterStates = {
     IDLE: 'idle',
@@ -37,7 +38,7 @@ export class Game {
             characterState: CharacterStates.IDLE,
             maxHealth: 100,
             currentHealth: 100,
-            damage: 0,
+            damage: 50,
         };
 
         this.npc1_Attributes = {
@@ -117,7 +118,9 @@ export class Game {
         npc1Mesh.position.x = 4;
         npc2Mesh.position.set(4, 0, 4);
         npc3Mesh.position.x = -4;
-
+        this.setColor(npc1Mesh)
+        this.setColor(npc2Mesh)
+        this.setColor(npc3Mesh)
         this.scene.add(this.playerMesh);
         this.scene.add(npc1Mesh);
         this.scene.add(npc2Mesh);
@@ -173,14 +176,13 @@ export class Game {
     saveOriginalColors() {
         this.player.mesh.traverse((child) => {
             if (child.isMesh) {
-                
-                
+
+
                 // 为每个mesh存储原始颜色
                 this.originalColors.set(child.uuid, child.material.color.clone());
             }
         });
-        console.log( this.originalColors);
-        
+
     }
 
     createCollectible() {
@@ -188,12 +190,18 @@ export class Game {
         const material = new THREE.MeshPhongMaterial({ color: Math.random() * 0xffffff });
         const collectible = new THREE.Mesh(geometry, material);
 
-        // 随机位置
-        collectible.position.x = (Math.random() - 0.5) * 10;
-        collectible.position.z = (Math.random() - 0.5) * 10;
-        collectible.position.y = 0.3;
+        const attributes = {
+            damage: 10,
+        }
 
-        this.scene.add(collectible);
+        const sord = new Weapon('sord', collectible, attributes);
+
+        // 随机位置
+        sord.mesh.position.x = (Math.random() - 0.5) * 10;
+        sord.mesh.position.z = (Math.random() - 0.5) * 10;
+        sord.mesh.position.y = 0.3;
+
+        this.scene.add(sord.mesh);
         this.collectibles.push({
             mesh: collectible,
             color: material.color.getHex()
@@ -211,8 +219,12 @@ export class Game {
                 // 收集物品
                 this.scene.remove(collectible.mesh);
                 collectibles.splice(i, 1);
-                this.ui.addItem({ color: collectible.color });
-
+                this.ui.addItem({color:collectible.color,name:'sword'});
+                this.player.equip(new Weapon(
+                    "Sword",
+                    collectible.mesh,
+                    { damage: 25 }
+                ))
                 // // 玩家变色效果
                 // this.player.mesh.traverse((child) => {
                 //     if (child.isMesh) {
@@ -235,6 +247,16 @@ export class Game {
                 // }, 500);
             }
         }
+    }
+
+    setColor(character, color = 0x00ff00) {
+        character.traverse((child) => {
+            if (child.isMesh) {
+                // 克隆材质以避免影响其他使用相同材质的网格
+                child.material = child.material.clone();
+                child.material.color.setHex(color);
+            }
+        });
     }
 
     setupEnv() {
@@ -310,6 +332,12 @@ export class Game {
 
     checkAttack() {
         if (this.player.attributes.characterState == 'attack') {
+            let actualDamage = this.player.attributes.damage
+            if (this.player.equipment.length > 0) {
+                this.player.equipment.forEach(n=> {
+                    actualDamage += n.attributes.damage;
+                })
+            }
 
             this.allNpc.forEach(npc => {
                 const distance = this.player.mesh.position.distanceTo(npc.mesh.position);
@@ -328,10 +356,9 @@ export class Game {
                     // npc.switchAnimation('hit');
                     npc.transitionTo('hit');
 
-                    this.applyDamage(npc, 10)
+                    this.applyDamage(npc, actualDamage)
                 }
             })
-            console.log(this.player.characterName, this.player.attributes.characterState);
             // }
         }
 

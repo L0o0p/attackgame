@@ -155,7 +155,6 @@ export class Character {
 
             }
         }
-        console.log(this.characterName, this.attributes.characterState);
 
     }
 

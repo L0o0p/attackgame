@@ -37,7 +37,7 @@ export class UI {
 
     addItem(item) {
         this.inventory.push(item);
-        this.updateInventoryUI();
+        this.updateInventoryUI(item.name);
     }
 
     updateInventoryUI() {
@@ -51,7 +51,7 @@ export class UI {
                 border-radius: 5px;
                 background-color: #${item.color.toString(16).padStart(6, '0')};
                 `;
-            itemDiv.textContent = `物品 ${index + 1}`;
+            itemDiv.textContent = item.name;
             this.itemsContainer.appendChild(itemDiv);
         });
     }
