@@ -24,10 +24,10 @@ export class Player extends Character {
         this.equipment = []
     }
 
-    equip(newWeapon) {
-        this.equipment.push( newWeapon)
-        console.log('equitment',this.equipment);
-        
+    equip(newEquipment) {
+        this.equipment.push(newEquipment)
+        console.log('equitment', this.equipment);
+
     }
 
     // 改写

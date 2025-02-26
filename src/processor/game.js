@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { UI } from '../ui/ui';
 import { Enemy } from './entity/enemy';
 import { Player } from './entity/player';
-import { Weapon } from './entity/weapon';
+import { Equipment } from './entity/equipment';
 
 export const CharacterStates = {
     IDLE: 'idle',
@@ -176,8 +176,6 @@ export class Game {
     saveOriginalColors() {
         this.player.mesh.traverse((child) => {
             if (child.isMesh) {
-
-
                 // 为每个mesh存储原始颜色
                 this.originalColors.set(child.uuid, child.material.color.clone());
             }
@@ -188,29 +186,31 @@ export class Game {
     createCollectible() {
         const geometry = new THREE.SphereGeometry(0.3);
         const material = new THREE.MeshPhongMaterial({ color: Math.random() * 0xffffff });
-        const collectible = new THREE.Mesh(geometry, material);
+        const collectibleMesh = new THREE.Mesh(geometry, material);
 
         const attributes = {
             damage: 10,
         }
 
-        const sord = new Weapon('sord', collectible, attributes);
+        const collectible = new Equipment(
+            'SWORD',
+            collectibleMesh,
+            attributes
+        );
 
         // 随机位置
-        sord.mesh.position.x = (Math.random() - 0.5) * 10;
-        sord.mesh.position.z = (Math.random() - 0.5) * 10;
-        sord.mesh.position.y = 0.3;
+        collectible.mesh.position.x = (Math.random() - 0.5) * 10;
+        collectible.mesh.position.z = (Math.random() - 0.5) * 10;
+        collectible.mesh.position.y = 0.3;
 
-        this.scene.add(sord.mesh);
-        this.collectibles.push({
-            mesh: collectible,
-            color: material.color.getHex()
-        });
+        this.scene.add(collectible.mesh);//.getHex()
+        this.collectibles.push(collectible);
     }
 
     //  拾取
     checkCollisions() {
         const collectibles = this.collectibles;
+        if(this.player.equipment.length >= 3) return;
         for (let i = collectibles.length - 1; i >= 0; i--) {
             const collectible = collectibles[i];
             const distance = this.player.mesh.position.distanceTo(collectible.mesh.position);
@@ -219,32 +219,37 @@ export class Game {
                 // 收集物品
                 this.scene.remove(collectible.mesh);
                 collectibles.splice(i, 1);
-                this.ui.addItem({color:collectible.color,name:'sword'});
-                this.player.equip(new Weapon(
-                    "Sword",
+                this.ui.addItem({
+                    name: 'SWORD',
+                    color: collectible.mesh.material.color.getHex(),
+                    attributes: collectible.attributes.damage
+                });
+                this.player.equip(new Equipment(
+                    "SWORD",
                     collectible.mesh,
                     { damage: 25 }
                 ))
-                // // 玩家变色效果
-                // this.player.mesh.traverse((child) => {
-                //     if (child.isMesh) {
-                //         // 克隆材质以避免影响其他使用相同材质的网格
-                //         child.material = child.material.clone();
-                //         child.material.color.setHex(collectible.color);
-                //     }
-                // });
+                // 玩家变色效果
+                this.player.mesh.traverse((child) => {
+                    if (child.isMesh) {
+                        // 克隆材质以避免影响其他使用相同材质的网格
+                        child.material = child.material.clone();
+                        const color = collectible.mesh.material.color.getHex();
+                        child.material.color.setHex(color);
+                    }
+                });
 
-                // // 五百毫秒后恢复原始颜色
-                // setTimeout(() => {
-                //     this.player.mesh.traverse((child) => {
-                //         if (child.isMesh) {
-                //             const originalColor = this.originalColors.get(child.uuid);
-                //             if (originalColor) {
-                //                 child.material.color.setHex(originalColor);
-                //             }
-                //         }
-                //     });
-                // }, 500);
+                // 五百毫秒后恢复原始颜色
+                setTimeout(() => {
+                    this.player.mesh.traverse((child) => {
+                        if (child.isMesh) {
+                            const originalColor = this.originalColors.get(child.uuid).getHex();
+                            if (originalColor) {
+                                child.material.color.setHex(originalColor);
+                            }
+                        }
+                    });
+                }, 300);
             }
         }
     }
@@ -334,7 +339,7 @@ export class Game {
         if (this.player.attributes.characterState == 'attack') {
             let actualDamage = this.player.attributes.damage
             if (this.player.equipment.length > 0) {
-                this.player.equipment.forEach(n=> {
+                this.player.equipment.forEach(n => {
                     actualDamage += n.attributes.damage;
                 })
             }

@@ -22,7 +22,7 @@ export class UI {
                 `;
 
         const title = document.createElement('h2');
-        title.textContent = '背包';
+        title.textContent = 'Equipment';
         title.style.margin = '0 0 10px 0';
 
         const itemsContainer = document.createElement('div');
@@ -45,13 +45,24 @@ export class UI {
         this.inventory.forEach((item, index) => {
             const itemDiv = document.createElement('div');
             itemDiv.style.cssText = `
+                display:flex;
+                flex-direction:column;
                 margin: 5px 0;
                 padding: 5px;
                 background: rgba(255, 255, 255, 0.1);
                 border-radius: 5px;
                 background-color: #${item.color.toString(16).padStart(6, '0')};
                 `;
-            itemDiv.textContent = item.name;
+            itemDiv.textContent = `${item.name}    +${item.attributes}ad`;
+            // 同时添加一个img标签,在文字内容上方显示图片
+            const img = document.createElement('img');
+            itemDiv.insertBefore(img, itemDiv.firstChild);
+            this.itemsContainer.appendChild(itemDiv);
+            img.src = `/icons/${item.name.toLowerCase()}.png`;
+            img.style.width = '50px';
+            img.style.height = '50px';
+            itemDiv.appendChild(img);
+
             this.itemsContainer.appendChild(itemDiv);
         });
     }
