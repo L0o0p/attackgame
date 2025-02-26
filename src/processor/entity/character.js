@@ -63,18 +63,6 @@ export class Character {
         this.currentAction = newAction;
     }
 
-    // changeState(newState) {
-    //     // 如果状态没有改变，就不做任何事
-    //     if (this.attributes.characterState === newState) return;
-
-    //     // 更新状态
-    //     this.attributes.characterState = newState;
-    //     // 切换动画
-    //     console.log(this.characterName,newState);
-
-    //     this.switchAnimation(newState);
-    // }
-
     transitionTo(newState) {
         // 如果已是相同状态，无需处理
         if (this.attributes.characterState === newState) {
@@ -144,6 +132,7 @@ export class Character {
                 hitAction.clampWhenFinished = false;
                 this.switchAnimation(hitAction)
                 const mixer = hitAction.getMixer()
+                // 添加被连续攻击的情况（不会回复到idle，而是一直被攻击）
                 const onFinished = (e) => {
                     if (e.action === hitAction) {
                         this.transitionTo(CharacterStates.IDLE);

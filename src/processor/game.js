@@ -14,23 +14,23 @@ export const CharacterStates = {
 
 export class Game {
     constructor() {
-        // 初始化类成员变量
+        // 场景和摄像机
         this.scene = null;
         this.camera = null;
         this.cameraTarget = null;// playerMesh
         this.cameraOffset = new THREE.Vector3(0, 5, 10);
         this.smoothness = 0.1; // 相机移动平滑度
         this.renderer = null;
-        // 为每个模型分别存储 mixer 和 actions
-        this.mixers = new Map();
-        this.modelActions = new Map();
-        this.currentActions = new Map();
-        this.clock = null;
-        this.currentAction = null;
+
+        // 可收集物品数组
+        this.collectibles = [];
+        this.originalColors = new Map();
+
+        // 角色和动画
         this.player = null;
         this.playerMesh = null;
         this.allNpc = [];
-
+        // 角色属性
         this.playerState = {
             velocity: new THREE.Vector3(),
             speed: 0.1,
@@ -72,7 +72,7 @@ export class Game {
             isHit: false,
             hitCooldown: 0,
         };
-
+        // 键盘输入
         this.keys = {};
 
         // 初始化UI
@@ -93,7 +93,6 @@ export class Game {
         this.renderer = new THREE.WebGLRenderer();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(this.renderer.domElement);
-        this.clock = new THREE.Clock();
 
         //  新建一个平面
         this.planeGeometry = new THREE.PlaneGeometry(10, 10).rotateX(-Math.PI / 2);
@@ -134,6 +133,8 @@ export class Game {
             , this.keys
         )
 
+        this.saveOriginalColors()
+
         this.npc1 = new Enemy(
             'npc1',
             npc1Mesh,// 模型
@@ -160,8 +161,80 @@ export class Game {
         // 设置环境部份
         this.setupEnv()
 
+        // 创建多个可收集物品
+        for (let i = 0; i < 10; i++) {
+            this.createCollectible();
+        }
+
         // 添加事件监听
         this.addEventListeners();
+    }
+
+    saveOriginalColors() {
+        this.player.mesh.traverse((child) => {
+            if (child.isMesh) {
+                
+                
+                // 为每个mesh存储原始颜色
+                this.originalColors.set(child.uuid, child.material.color.clone());
+            }
+        });
+        console.log( this.originalColors);
+        
+    }
+
+    createCollectible() {
+        const geometry = new THREE.SphereGeometry(0.3);
+        const material = new THREE.MeshPhongMaterial({ color: Math.random() * 0xffffff });
+        const collectible = new THREE.Mesh(geometry, material);
+
+        // 随机位置
+        collectible.position.x = (Math.random() - 0.5) * 10;
+        collectible.position.z = (Math.random() - 0.5) * 10;
+        collectible.position.y = 0.3;
+
+        this.scene.add(collectible);
+        this.collectibles.push({
+            mesh: collectible,
+            color: material.color.getHex()
+        });
+    }
+
+    //  拾取
+    checkCollisions() {
+        const collectibles = this.collectibles;
+        for (let i = collectibles.length - 1; i >= 0; i--) {
+            const collectible = collectibles[i];
+            const distance = this.player.mesh.position.distanceTo(collectible.mesh.position);
+
+            if (distance < 1) {
+                // 收集物品
+                this.scene.remove(collectible.mesh);
+                collectibles.splice(i, 1);
+                this.ui.addItem({ color: collectible.color });
+
+                // // 玩家变色效果
+                // this.player.mesh.traverse((child) => {
+                //     if (child.isMesh) {
+                //         // 克隆材质以避免影响其他使用相同材质的网格
+                //         child.material = child.material.clone();
+                //         child.material.color.setHex(collectible.color);
+                //     }
+                // });
+
+                // // 五百毫秒后恢复原始颜色
+                // setTimeout(() => {
+                //     this.player.mesh.traverse((child) => {
+                //         if (child.isMesh) {
+                //             const originalColor = this.originalColors.get(child.uuid);
+                //             if (originalColor) {
+                //                 child.material.color.setHex(originalColor);
+                //             }
+                //         }
+                //     });
+                // }, 500);
+            }
+        }
     }
 
     setupEnv() {
@@ -237,36 +310,28 @@ export class Game {
 
     checkAttack() {
         if (this.player.attributes.characterState == 'attack') {
-            // if (!this.player.attributes.isAttacking) {
-            //     this.player.attributes.isAttacking = true; // 确保只判定一次
-                // this.player.switchAnimation('attack');
-                // setTimeout(() => {
-                //     this.player.transitionTo('idle');
-                // }, 500);
 
-                // this.player.attributes.characterState = 'idle';
+            this.allNpc.forEach(npc => {
+                const distance = this.player.mesh.position.distanceTo(npc.mesh.position);
 
-                this.allNpc.forEach(npc => {
-                    const distance = this.player.mesh.position.distanceTo(npc.mesh.position);
+                if (distance < 1.3 && !npc.attributes.isHit) {
+                    // if (distance < 1.3 && npc.attributes.characterState!=='hit') {
+                    npc.attributes.isHit = true;
+                    // npc.attributes.characterState ='hit'
+                    npc.attributes.hitCooldown = 90;
 
-                    if (distance < 1.3 && !npc.attributes.isHit) {
-                        // if (distance < 1.3 && npc.attributes.characterState!=='hit') {
-                        npc.attributes.isHit = true;
-                        // npc.attributes.characterState ='hit'
-                        npc.attributes.hitCooldown = 90;
+                    const knockbackDirection = npc.mesh.position.clone()
+                        .sub(this.player.mesh.position).normalize().multiplyScalar(0.5);
+                    npc.mesh.position.add(knockbackDirection);
 
-                        const knockbackDirection = npc.mesh.position.clone()
-                            .sub(this.player.mesh.position).normalize().multiplyScalar(0.5);
-                        npc.mesh.position.add(knockbackDirection);
+                    // 使用正确的模型引用播放动画
+                    // npc.switchAnimation('hit');
+                    npc.transitionTo('hit');
 
-                        // 使用正确的模型引用播放动画
-                        // npc.switchAnimation('hit');
-                        npc.transitionTo('hit');
-
-                        this.applyDamage(npc, 10)
-                    }
-                })
-                console.log(this.player.characterName, this.player.attributes.characterState);
+                    this.applyDamage(npc, 10)
+                }
+            })
+            console.log(this.player.characterName, this.player.attributes.characterState);
             // }
         }
 
@@ -286,20 +351,6 @@ export class Game {
 
                     // 使用正确的模型引用播放动画
                     this.player.transitionTo('hit');
-
-                    // const newAction = this.player.actions.get('hit');
-                    // if (!newAction) return;
-
-                    // if (this.player.currentAction && this.player.currentAction !== newAction) {
-                    //     this.player.currentAction.fadeOut(0.2);
-                    // }
-                    // newAction.reset();
-                    // newAction.fadeIn(0.2);
-                    // newAction.play();
-
-                    // this.player.currentAction = newAction;
-
-                    // this.applyDamage(this.player, 50)
                 }
             }
         })
@@ -309,15 +360,9 @@ export class Game {
     animate() {
         requestAnimationFrame(this.animate);
 
-        const delta = this.clock.getDelta();
-        // 更新所有 mixers
-        this.mixers.forEach(mixer => mixer.update(delta));
 
-        // this.updatePlayer();
         this.player.updateAll()
-        // this.npc1.updateAll();
-        // this.npc2.updateAll();
-        // this.npc3.updateAll();
+        this.checkCollisions()
         this.allNpc.forEach(npc => {
             npc.updateBehavior(this.player, this);
             npc.updateAll();

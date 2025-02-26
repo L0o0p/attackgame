@@ -2,6 +2,58 @@ export class UI {
     constructor(game) {
         this.game = game;
         this.setupHealthBars();
+        
+        this.itemsContainer = null;
+        this.inventory = [];
+        this.createInventory();
+    }
+
+    createInventory() {
+        const inventoryContainer = document.createElement('div');
+        inventoryContainer.style.cssText = `
+                position: fixed;
+                right: 20px;
+                top: 20px;
+                background: rgba(0, 0, 0, 0.7);
+                color: white;
+                padding: 20px;
+                border-radius: 10px;
+                font-family: Arial, sans-serif;
+                `;
+
+        const title = document.createElement('h2');
+        title.textContent = '背包';
+        title.style.margin = '0 0 10px 0';
+
+        const itemsContainer = document.createElement('div');
+        itemsContainer.id = 'items';
+
+        inventoryContainer.appendChild(title);
+        inventoryContainer.appendChild(itemsContainer);
+        document.body.appendChild(inventoryContainer);
+
+        this.itemsContainer = itemsContainer;
+    }
+
+    addItem(item) {
+        this.inventory.push(item);
+        this.updateInventoryUI();
+    }
+
+    updateInventoryUI() {
+        this.itemsContainer.innerHTML = '';
+        this.inventory.forEach((item, index) => {
+            const itemDiv = document.createElement('div');
+            itemDiv.style.cssText = `
+                margin: 5px 0;
+                padding: 5px;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 5px;
+                background-color: #${item.color.toString(16).padStart(6, '0')};
+                `;
+            itemDiv.textContent = `物品 ${index + 1}`;
+            this.itemsContainer.appendChild(itemDiv);
+        });
     }
 
     createHealthBar(config) {
