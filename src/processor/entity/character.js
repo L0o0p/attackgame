@@ -31,6 +31,7 @@ export class Character {
                 action.loop = THREE.LoopOnce; // 只播放一次
             }
             this.actions.set(name, action);
+            console.log(this.characterName, 'actions', this.actions);
 
         });
 

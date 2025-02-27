@@ -4,6 +4,7 @@ import { UI } from '../ui/ui';
 import { Enemy } from './entity/enemy';
 import { Player } from './entity/player';
 import { Equipment } from './entity/equipment';
+import { PI } from 'three/tsl';
 
 export const CharacterStates = {
     IDLE: 'idle',
@@ -103,11 +104,13 @@ export class Game {
 
         // 加载模型
         const loader = new GLTFLoader();
-        const [loadedData, loadedData1, loadedData2, loadedData3] = await Promise.all([
+        const [loadedData, loadedData1, loadedData2, loadedData3, swordData, hamburgerData] = await Promise.all([
+            loader.loadAsync('/models/PlayerWithSword.glb'),
             loader.loadAsync('/models/gamelike.glb'),
             loader.loadAsync('/models/gamelike.glb'),
             loader.loadAsync('/models/gamelike.glb'),
-            loader.loadAsync('/models/gamelike.glb'),
+            loader.loadAsync('/models/swordR.glb'),
+            loader.loadAsync('/models/hamburger.glb'),
         ]);
 
         // 设置玩家和目标
@@ -115,6 +118,14 @@ export class Game {
         const npc1Mesh = loadedData1.scene;
         const npc2Mesh = loadedData2.scene;
         const npc3Mesh = loadedData3.scene;
+        const swordMesh = swordData.scene;
+        const healMesh = hamburgerData.scene;
+        const x = 0.6
+        swordMesh.scale.set(x, x, x);
+        swordMesh.rotateY(Math.PI / 8);
+        const xx = 0.05
+        healMesh.scale.set(xx, xx, xx);
+        healMesh.position.y = 40;
         npc1Mesh.position.x = 4;
         npc2Mesh.position.set(4, 0, 4);
         npc3Mesh.position.x = -4;
@@ -166,7 +177,7 @@ export class Game {
 
         // 创建多个可收集物品
         for (let i = 0; i < 10; i++) {
-            this.createCollectible();
+            this.createCollectible(swordMesh, healMesh);
         }
 
         // 添加事件监听
@@ -183,7 +194,7 @@ export class Game {
 
     }
 
-    createCollectible() {
+    createCollectible(swordMesh, healMesh) {
         const geometry = new THREE.SphereGeometry(0.3);
         const material = new THREE.MeshPhongMaterial({ color: Math.random() * 0xffffff });
         const collectibleMesh = new THREE.Mesh(geometry, material);
@@ -191,10 +202,14 @@ export class Game {
         const attributes = {
             damage: 10,
         }
-
+        function generateRandomItem() {
+            const random = Math.random(); // 生成0-1之间的随机数
+            return random < 0.2 ? 'SWORD' : 'HEAL';
+        }
+        const itemType = generateRandomItem();
         const collectible = new Equipment(
-            'SWORD',
-            collectibleMesh,
+            itemType,
+            itemType == 'SWORD' ? swordMesh.clone() : healMesh.clone(),
             attributes
         );
 
@@ -210,32 +225,43 @@ export class Game {
     //  拾取
     checkCollisions() {
         const collectibles = this.collectibles;
-        if(this.player.equipment.length >= 3) return;
+        // if(this.player.equipment.length >= 3) return;
         for (let i = collectibles.length - 1; i >= 0; i--) {
             const collectible = collectibles[i];
             const distance = this.player.mesh.position.distanceTo(collectible.mesh.position);
 
             if (distance < 1) {
+                // 即时治疗效果
+                if (collectible.EquipmentName === 'HEAL') {
+                    console.log('heal'), this.heal(true, 50)
+                    this.scene.remove(collectible.mesh);
+                    collectibles.splice(i, 1);// 
+                }
                 // 收集物品
-                this.scene.remove(collectible.mesh);
-                collectibles.splice(i, 1);
-                this.ui.addItem({
-                    name: 'SWORD',
-                    color: collectible.mesh.material.color.getHex(),
-                    attributes: collectible.attributes.damage
-                });
-                this.player.equip(new Equipment(
-                    "SWORD",
-                    collectible.mesh,
-                    { damage: 25 }
-                ))
+                if (collectible.EquipmentName === 'SWORD'&&this.player.equipment.length < 3) {
+                    this.scene.remove(collectible.mesh);
+                    collectibles.splice(i, 1);// 
+                    this.ui.addItem({
+                        name: 'SWORD',
+                        // color: collectible.mesh.material.color.getHex(),
+                        color: 0xFF69B4,
+                        attributes: collectible.attributes.damage
+                    });
+                    this.player.equip(new Equipment(
+                        "SWORD",
+                        collectible.mesh,
+                        { damage: 25 }
+                    ))
+                }
                 // 玩家变色效果
                 this.player.mesh.traverse((child) => {
                     if (child.isMesh) {
                         // 克隆材质以避免影响其他使用相同材质的网格
                         child.material = child.material.clone();
-                        const color = collectible.mesh.material.color.getHex();
-                        child.material.color.setHex(color);
+                        // const color = collectible.mesh.material.color.getHex();
+                        // child.material.color.setHex(color);
+                        // 黄色
+                        child.material.color.setHex(0xFFFF00);
                     }
                 });
 
@@ -295,6 +321,21 @@ export class Game {
     applyDamage(damagedCharacter, damageValue) {// 应用伤害
         damagedCharacter.attributes.currentHealth = Math.max(0, damagedCharacter.attributes.currentHealth - damageValue);
         if (damagedCharacter.attributes.currentHealth <= 0) damagedCharacter.transitionTo('die')
+        this.ui.updateHealthBars();
+    }
+
+    heal(isPlayer, amount) {
+        if (isPlayer) {
+            this.playerState.currentHealth = Math.min(
+                this.playerState.maxHealth,
+                this.playerState.currentHealth + amount
+            );
+        } else {
+            this.targetState.currentHealth = Math.min(
+                this.targetState.maxHealth,
+                this.targetState.currentHealth + amount
+            );
+        }
         this.ui.updateHealthBars();
     }
 
