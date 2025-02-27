@@ -2,11 +2,11 @@
 
 export class Equipment {
     constructor(
-        EquipmentName,
+        equipmentName,
         mesh,
         attributes,
     ) {
-        this.EquipmentName = EquipmentName;
+        this.equipmentName = equipmentName;
         this.mesh = mesh
         this.attributes = attributes
     }

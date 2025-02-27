@@ -4,12 +4,12 @@ import { UI } from '../ui/ui';
 import { Enemy } from './entity/enemy';
 import { Player } from './entity/player';
 import { Equipment } from './entity/equipment';
-import { PI } from 'three/tsl';
 
 export const CharacterStates = {
     IDLE: 'idle',
     WALK: 'walk',
     ATTACK: 'attack',
+    ATTACKWITHSWORD: 'attackwithsword',
     HIT: 'hit',
     DEATH: 'die'
 };
@@ -112,8 +112,11 @@ export class Game {
             loader.loadAsync('/models/swordR.glb'),
             loader.loadAsync('/models/hamburger.glb'),
         ]);
+        const swordObject = loadedData.scene.getObjectByName("sword");
+        console.log('swordObject', swordObject);
+        swordObject.position.add({ x: 0.2, y: 0.09, z: -0.2 });
 
-        // 设置玩家和目标
+        // 设置玩家和目 标
         this.playerMesh = loadedData.scene;
         const npc1Mesh = loadedData1.scene;
         const npc2Mesh = loadedData2.scene;
@@ -232,13 +235,13 @@ export class Game {
 
             if (distance < 1) {
                 // 即时治疗效果
-                if (collectible.EquipmentName === 'HEAL') {
+                if (collectible.equipmentName === 'HEAL') {
                     console.log('heal'), this.heal(true, 50)
                     this.scene.remove(collectible.mesh);
                     collectibles.splice(i, 1);// 
                 }
                 // 收集物品
-                if (collectible.EquipmentName === 'SWORD'&&this.player.equipment.length < 3) {
+                if (collectible.equipmentName === 'SWORD' && this.player.equipment.length < 3) {
                     this.scene.remove(collectible.mesh);
                     collectibles.splice(i, 1);// 
                     this.ui.addItem({
@@ -250,7 +253,7 @@ export class Game {
                     this.player.equip(new Equipment(
                         "SWORD",
                         collectible.mesh,
-                        { damage: 25 }
+                        { damage: 50 }
                     ))
                 }
                 // 玩家变色效果

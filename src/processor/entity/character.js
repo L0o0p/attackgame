@@ -19,6 +19,8 @@ export class Character {
         this.clock = new THREE.Clock();
         this.setupActions(animations)
         this.transitionTo(CharacterStates.IDLE);
+
+        this.equipment = []
     }
 
     setupActions(animations) {
@@ -31,7 +33,6 @@ export class Character {
                 action.loop = THREE.LoopOnce; // 只播放一次
             }
             this.actions.set(name, action);
-            console.log(this.characterName, 'actions', this.actions);
 
         });
 
@@ -48,6 +49,8 @@ export class Character {
         newAction.play();
 
         this.currentAction = newAction;
+        console.log(this.actions);
+        
     }
 
     switchAnimation(newAction) {
@@ -90,14 +93,19 @@ export class Character {
 
         // 如果是攻击或受击，需要限制播放次数/回调
         if (newState === CharacterStates.ATTACK) {
-            const attackAction = this.actions.get(CharacterStates.ATTACK);
+            const actionName = (this.equipment.some(n => n.equipmentName === 'SWORD')) ?
+                CharacterStates.ATTACKWITHSWORD : CharacterStates.ATTACK
+            const attackAction = this.actions.get(actionName);
+            console.log('attackAction', attackAction);
+            
             if (this.currentAction && this.currentAction !== attackAction) {
                 this.currentAction.fadeOut(0.2);
             }
             if (attackAction) {
                 attackAction.setLoop(THREE.LoopOnce);
                 attackAction.clampWhenFinished = true;
-                console.log(attackAction);
+                // const hasAlice = users.some(user => user.name === 'Alice');
+                // console.log(hasAlice); // true
                 this.switchAnimation(attackAction)
                 const mixer = attackAction.getMixer()
                 const onFinished = (e) => {

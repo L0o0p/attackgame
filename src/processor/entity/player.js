@@ -21,13 +21,10 @@ export class Player extends Character {
         // 额外
         this.keys = keys
         this.attackig = false
-        this.equipment = []
     }
 
     equip(newEquipment) {
         this.equipment.push(newEquipment)
-        console.log('equitment', this.equipment);
-
     }
 
     // 改写
