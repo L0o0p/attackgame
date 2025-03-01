@@ -115,6 +115,7 @@ export class Game {
         const swordObject = loadedData.scene.getObjectByName("sword");
         console.log('swordObject', swordObject);
         swordObject.position.add({ x: 0.2, y: 0.09, z: -0.2 });
+        swordObject.visible = false;
 
         // 设置玩家和目 标
         this.playerMesh = loadedData.scene;
@@ -148,6 +149,7 @@ export class Game {
 
             // 额外
             , this.keys
+            , swordObject
         )
 
         this.saveOriginalColors()
@@ -185,6 +187,14 @@ export class Game {
 
         // 添加事件监听
         this.addEventListeners();
+    }
+
+    async loadGLB(url) {
+        const data = await loader.loadAsync('/models/swordR.glb')
+        console.log('data', data);
+        const mesh = data.scene;
+        const animations = data.animations;
+        return { mesh, animations };
     }
 
     saveOriginalColors() {
@@ -244,6 +254,7 @@ export class Game {
                 if (collectible.equipmentName === 'SWORD' && this.player.equipment.length < 3) {
                     this.scene.remove(collectible.mesh);
                     collectibles.splice(i, 1);// 
+                    this.player.pickupSword()
                     this.ui.addItem({
                         name: 'SWORD',
                         // color: collectible.mesh.material.color.getHex(),

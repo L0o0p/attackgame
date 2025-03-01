@@ -12,6 +12,7 @@ export class Character {
         this.characterName = characterName
         this.mesh = mesh;
         this.attributes = attributes;// 属性含状态
+        this.animations = animations
 
         this.actions = new Map();;
         this.currentAction = null;

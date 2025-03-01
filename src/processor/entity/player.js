@@ -10,7 +10,8 @@ export class Player extends Character {
         animations,
         attributes,
         // 额外
-        keys
+        keys,
+        swordMesh
     ) {
         super(
             characterName,
@@ -21,10 +22,19 @@ export class Player extends Character {
         // 额外
         this.keys = keys
         this.attackig = false
+        this.sword = swordMesh
     }
 
     equip(newEquipment) {
         this.equipment.push(newEquipment)
+    }
+
+    pickupSword() {
+        if (!this.sword || this.hasSword) return;
+
+        // 显示剑
+        this.sword.visible = true;
+        this.hasSword = true;
     }
 
     // 改写
