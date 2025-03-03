@@ -42,38 +42,6 @@ export class Game {
             damage: 50,
         };
 
-        this.npc1_Attributes = {
-            velocity: new THREE.Vector3(),
-            speed: 0.1 / 2,
-            characterState: CharacterStates.IDLE,
-            maxHealth: 100,
-            currentHealth: 100,
-            damage: 15,
-            isHit: false,
-            hitCooldown: 0 / 2,
-        };
-
-        this.npc2_Attributes = {
-            velocity: new THREE.Vector3(),
-            speed: 0.1 / 2,
-            characterState: CharacterStates.IDLE,
-            maxHealth: 100,
-            currentHealth: 100,
-            damage: 15,
-            isHit: false,
-            hitCooldown: 0,
-        };
-
-        this.npc3_Attributes = {
-            velocity: new THREE.Vector3(),
-            speed: 0.1 / 2,
-            characterState: CharacterStates.IDLE,
-            maxHealth: 100,
-            currentHealth: 100,
-            damage: 15,
-            isHit: false,
-            hitCooldown: 0,
-        };
         // 键盘输入
         this.keys = {};
 
@@ -96,34 +64,32 @@ export class Game {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(this.renderer.domElement);
 
-        //  新建一个平面
-        this.planeGeometry = new THREE.PlaneGeometry(10, 10).rotateX(-Math.PI / 2);
-        this.planeMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide });
-        this.plane = new THREE.Mesh(this.planeGeometry, this.planeMaterial);
-        this.scene.add(this.plane);
 
         // 加载模型
         const loader = new GLTFLoader();
-        const [loadedData, loadedData1, loadedData2, loadedData3, swordData, hamburgerData] = await Promise.all([
+        const [loadedData, loadedData1, loadedData2, loadedData3, swordData, hamburgerData, sceneData] = await Promise.all([
             loader.loadAsync('/models/PlayerWithSword.glb'),
             loader.loadAsync('/models/gamelike.glb'),
             loader.loadAsync('/models/gamelike.glb'),
             loader.loadAsync('/models/gamelike.glb'),
             loader.loadAsync('/models/swordR.glb'),
             loader.loadAsync('/models/hamburger.glb'),
+            loader.loadAsync('/models/lowPolyScene.glb'),
         ]);
         const swordObject = loadedData.scene.getObjectByName("sword");
-        console.log('swordObject', swordObject);
         swordObject.position.add({ x: 0.2, y: 0.09, z: -0.2 });
         swordObject.visible = false;
 
-        // 设置玩家和目 标
+        // 设置玩家和目标
         this.playerMesh = loadedData.scene;
         const npc1Mesh = loadedData1.scene;
         const npc2Mesh = loadedData2.scene;
         const npc3Mesh = loadedData3.scene;
-        const swordMesh = swordData.scene;
+        const sceneMesh = sceneData.scene
+        .rotateY(Math.PI / 2);
         const healMesh = hamburgerData.scene;
+
+        const swordMesh = swordData.scene;
         const x = 0.6
         swordMesh.scale.set(x, x, x);
         swordMesh.rotateY(Math.PI / 8);
@@ -140,6 +106,7 @@ export class Game {
         this.scene.add(npc1Mesh);
         this.scene.add(npc2Mesh);
         this.scene.add(npc3Mesh);
+        this.scene.add(sceneMesh);
 
         this.player = new Player(
             'player',
@@ -158,21 +125,48 @@ export class Game {
             'npc1',
             npc1Mesh,// 模型
             loadedData1.animations,// 动画
-            this.npc1_Attributes // 参数
+            {
+                velocity: new THREE.Vector3(),
+                speed: 0.1 / 2,
+                characterState: CharacterStates.IDLE,
+                maxHealth: 100,
+                currentHealth: 100,
+                damage: 15,
+                isHit: false,
+                hitCooldown: 0 / 2,
+            } // 参数
         )
 
         this.npc2 = new Enemy(
             'npc2',
             npc2Mesh,// 模型
             loadedData2.animations,// 动画
-            this.npc2_Attributes // 参数
+            {
+                velocity: new THREE.Vector3(),
+                speed: 0.1 / 2,
+                characterState: CharacterStates.IDLE,
+                maxHealth: 100,
+                currentHealth: 100,
+                damage: 15,
+                isHit: false,
+                hitCooldown: 0,
+            } // 参数
         )
 
         this.npc3 = new Enemy(
             'npc3',
             npc3Mesh,// 模型
             loadedData3.animations,// 动画
-            this.npc3_Attributes // 参数
+            {
+                velocity: new THREE.Vector3(),
+                speed: 0.1 / 2,
+                characterState: CharacterStates.IDLE,
+                maxHealth: 100,
+                currentHealth: 100,
+                damage: 15,
+                isHit: false,
+                hitCooldown: 0,
+            } // 参数
         )
 
         this.allNpc.push(this.npc1, this.npc2, this.npc3)
@@ -189,13 +183,6 @@ export class Game {
         this.addEventListeners();
     }
 
-    async loadGLB(url) {
-        const data = await loader.loadAsync('/models/swordR.glb')
-        console.log('data', data);
-        const mesh = data.scene;
-        const animations = data.animations;
-        return { mesh, animations };
-    }
 
     saveOriginalColors() {
         this.player.mesh.traverse((child) => {
@@ -446,7 +433,6 @@ export class Game {
 
     animate() {
         requestAnimationFrame(this.animate);
-
 
         this.player.updateAll()
         this.checkCollisions()

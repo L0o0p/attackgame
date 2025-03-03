@@ -1,0 +1,38 @@
+每次创建一个模型
+
+function loadResourcse() {
+    const loader = new GLTFLoader();
+    const model = loader.load('path/to/model.glb', (gltf) => {
+        const model = gltf.scene;
+        model.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        })
+    })
+    return {
+        model: model.mesh
+        animations: model.animations
+    }
+}
+
+function createCharacter(
+    name,
+    mesh,
+    animations,
+    attributes
+) {
+    const model = { modelpath }
+    const mesh = model.mesh
+    const animtions = model.animations
+
+    this.scene.add(mesh)
+
+    this.npc1 = new Character(
+        name: string,
+        mesh: mesh,
+        animations: animtionsClip[],
+        attributes: {}
+    )
+}
