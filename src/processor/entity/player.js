@@ -75,7 +75,6 @@ export class Player extends Character {
             y: linvel.y,  // 保持原有的Y轴速度（重力影响）
             z: moveZ
         }, true);
-
     }
 
     // 改写
