@@ -35,7 +35,8 @@ export class Game {
         // 角色属性
         this.playerState = {
             velocity: new THREE.Vector3(),
-            speed: 0.1,
+            speed: 3,
+            rotationSpeed:0.2,
             characterState: CharacterStates.IDLE,
             maxHealth: 100,
             currentHealth: 100,
@@ -121,19 +122,6 @@ export class Game {
         this.scene.add(npc2Mesh);
         this.scene.add(npc3Mesh);
 
-        this.player = new Player(
-            'player',
-            this.playerMesh,// 模型
-            loadedData.animations,// 动画
-            this.playerState // 参数
-
-            // 额外
-            , this.keys
-            , swordObject
-        )
-
-        this.saveOriginalColors()
-
         this.npc1 = new Enemy(
             'npc1',
             npc1Mesh,// 模型
@@ -216,6 +204,20 @@ export class Game {
         this.characterBody = this.world.createRigidBody(characterDesc);
         const characterCollider = RAPIER.ColliderDesc.capsule(characterHeight / 2, characterRadius);
         this.world.createCollider(characterCollider, this.characterBody);
+        
+        this.player = new Player(
+            'player',
+            this.playerMesh,// 模型
+            loadedData.animations,// 动画
+            this.playerState // 参数
+
+            // 额外
+            , this.keys
+            , swordObject
+            , this.characterBody
+        )
+
+        this.saveOriginalColors()
 
         this.player.mesh
             .position.set(0, -.58, 0);
@@ -226,6 +228,8 @@ export class Game {
         this.scene.add(this.player.mesh);
         this.physicsObjects.push({ body: this.characterBody, mesh: this.player.mesh });
 
+        this.cameraTarget = this.player.mesh;// playerMesh
+        this.camera.lookAt(this.cameraTarget.position);
 
         // 添加事件监听
         this.addEventListeners();
@@ -292,42 +296,6 @@ export class Game {
 
             this.physicsObjects.push({ body: rigidBody, mesh: this.objectMap.get(item.name) });
         });
-    }
-
-    // 角色移动
-    moveCharacter() {
-        const keys = this.keys
-
-        const linvel = this.characterBody.linvel();
-        let moveX = 0;
-        let moveZ = 0;
-
-        if (keys.w) moveZ -= this.moveSpeed;
-        if (keys.s) moveZ += this.moveSpeed;
-        if (keys.a) moveX -= this.moveSpeed;
-        if (keys.d) moveX += this.moveSpeed;
-        if (moveX !== 0 || moveZ !== 0) {
-            // 计算角色的旋转角度
-            // 标准化移动向量
-            const moveVector = new THREE.Vector2(moveX, moveZ).normalize();
-
-            // 创建目标旋转
-            const targetRotation = new THREE.Quaternion();
-            targetRotation.setFromAxisAngle(
-                new THREE.Vector3(0, 1, 0),
-                Math.atan2(moveVector.x, moveVector.y)
-            );
-
-            // 平滑插值到目标旋转
-            this.player.mesh.quaternion.slerp(targetRotation, this.rotationSpeed);
-        }
-        // 设置速度
-        this.characterBody.setLinvel({
-            x: moveX,
-            y: linvel.y,  // 保持原有的Y轴速度（重力影响）
-            z: moveZ
-        }, true);
-
     }
 
 
@@ -447,7 +415,6 @@ export class Game {
         // 调整相机位置以便更好地观察场景
         this.camera.position.set(0, 5, 10);
         this.camera.lookAt(0, 0, 0);
-        this.cameraTarget = this.player.mesh;// playerMesh
     }
 
     updateCamera() {
@@ -457,7 +424,6 @@ export class Game {
             // 平滑移动相机
             this.camera.position.lerp(targetPosition, this.smoothness);
             // 相机始终看向目标
-            this.camera.lookAt(this.cameraTarget.position);
         }
     }
 
@@ -590,8 +556,6 @@ export class Game {
         this.checkAttack();
         this.updateCamera()
 
-        // 角色移动
-        this.moveCharacter()
         // 物理世界步进
         this.world.step();
         // 更新所有物体的位置和旋转
