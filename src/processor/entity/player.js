@@ -38,22 +38,22 @@ export class Player extends Character {
     }
 
     // 改写
-    updateCharacter() {
-        // 【目标如果已死亡，就不要再让它切换动画】
-        super.updateCharacter()
-        // 只处理移动逻辑，不处理动画切换
-        if (this.attributes.characterState === CharacterStates.WALK) {
-            if (this.keys['w']) this.attributes.velocity.z -= this.attributes.speed;
-            if (this.keys['s']) this.attributes.velocity.z += this.attributes.speed;
-            if (this.keys['a']) this.attributes.velocity.x -= this.attributes.speed;
-            if (this.keys['d']) this.attributes.velocity.x += this.attributes.speed;
+    // updateCharacter() {
+    //     // 【目标如果已死亡，就不要再让它切换动画】
+    //     super.updateCharacter()
+    //     // 只处理移动逻辑，不处理动画切换
+    //     if (this.attributes.characterState === CharacterStates.WALK) {
+    //         if (this.keys['w']) this.attributes.velocity.z -= this.attributes.speed;
+    //         if (this.keys['s']) this.attributes.velocity.z += this.attributes.speed;
+    //         if (this.keys['a']) this.attributes.velocity.x -= this.attributes.speed;
+    //         if (this.keys['d']) this.attributes.velocity.x += this.attributes.speed;
 
-            this.mesh.position.add(this.attributes.velocity);
-            this.attributes.velocity.multiplyScalar(0.1);
+    //         this.mesh.position.add(this.attributes.velocity);
+    //         this.attributes.velocity.multiplyScalar(0.1);
 
-            const playerRotation = Math.atan2(this.attributes.velocity.x, this.attributes.velocity.z);
-            this.mesh.rotation.y = playerRotation;
-        }
-    }
+    //         const playerRotation = Math.atan2(this.attributes.velocity.x, this.attributes.velocity.z);
+    //         this.mesh.rotation.y = playerRotation;
+    //     }
+    // }
 
 }

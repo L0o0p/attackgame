@@ -50,7 +50,6 @@ export class Character {
         newAction.play();
 
         this.currentAction = newAction;
-        console.log(this.actions);
         
     }
 

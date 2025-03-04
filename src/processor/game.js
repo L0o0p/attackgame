@@ -42,8 +42,24 @@ export class Game {
             damage: 50,
         };
 
-        // 键盘输入
-        this.keys = {};
+        // 物理
+        this.RAPIER = null;
+        this.world = null
+        this.physicsObjects = []
+        this.characterBody = null
+
+        this.characterGroup = null
+        this.groundMesh = null;
+        this.visuals = []
+        this.colliders = [];
+        this.objectMap = new Map();
+
+        // // 键盘输入
+        // this.keys = {};
+        // 控制角色
+        this.keys = { w: false, a: false, s: false, d: false };
+        this.moveSpeed = 3;
+        this.rotationSpeed = 0.1;
 
         // 初始化UI
         this.ui = new UI(this);
@@ -64,7 +80,6 @@ export class Game {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(this.renderer.domElement);
 
-
         // 加载模型
         const loader = new GLTFLoader();
         const [loadedData, loadedData1, loadedData2, loadedData3, swordData, hamburgerData, sceneData] = await Promise.all([
@@ -74,7 +89,7 @@ export class Game {
             loader.loadAsync('/models/gamelike.glb'),
             loader.loadAsync('/models/swordR.glb'),
             loader.loadAsync('/models/hamburger.glb'),
-            loader.loadAsync('/models/lowPolyScene.glb'),
+            loader.loadAsync('/models/test.glb'),
         ]);
         const swordObject = loadedData.scene.getObjectByName("sword");
         swordObject.position.add({ x: 0.2, y: 0.09, z: -0.2 });
@@ -102,11 +117,9 @@ export class Game {
         this.setColor(npc1Mesh)
         this.setColor(npc2Mesh)
         this.setColor(npc3Mesh)
-        this.scene.add(this.playerMesh);
         this.scene.add(npc1Mesh);
         this.scene.add(npc2Mesh);
         this.scene.add(npc3Mesh);
-        this.scene.add(sceneMesh);
 
         this.player = new Player(
             'player',
@@ -179,8 +192,142 @@ export class Game {
             this.createCollectible(swordMesh, healMesh);
         }
 
+        // 物理
+        this.RAPIER = await import('https://cdn.skypack.dev/@dimforge/rapier3d-compat@0.11.2');
+        await this.RAPIER.init();
+        const RAPIER = this.RAPIER;
+
+        // 物理世界a
+        this.world = new RAPIER.World({ x: 0.0, y: -9.81, z: 0.0 });
+        this.sortObjects(sceneMesh)
+
+        this.createGround()
+        this.visuals.forEach(mesh => this.scene.add(mesh));
+        this.setPhyiscsForSceneObjects(sceneMesh)
+
+        // 创建可控制的胶囊体角色
+        const characterRadius = 0.5;
+        const characterHeight = 0.1;
+        const characterDesc = RAPIER.RigidBodyDesc.dynamic()
+            .setTranslation(0, 5, 0)
+            .setLinearDamping(1)  // 添加阻尼减少滑动
+            .setAngularDamping(1)
+            .lockRotations() // 锁定旋转;
+        this.characterBody = this.world.createRigidBody(characterDesc);
+        const characterCollider = RAPIER.ColliderDesc.capsule(characterHeight / 2, characterRadius);
+        this.world.createCollider(characterCollider, this.characterBody);
+
+        this.player.mesh
+            .position.set(0, -.58, 0);
+        // 将模型添加到组中
+        // this.characterGroup = new THREE.Group()
+        //     .rotateY(Math.PI / 2)
+        // this.characterGroup.add(this.player.mesh)
+        this.scene.add(this.player.mesh);
+        this.physicsObjects.push({ body: this.characterBody, mesh: this.player.mesh });
+
+
         // 添加事件监听
         this.addEventListeners();
+    }
+
+    // 分拣glb载入的场景中的物体
+    sortObjects(sceneMesh) {
+        let meshes = []
+        sceneMesh.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+                meshes.push(child)
+            }
+        });
+        for (const mesh of meshes) {
+            const name = mesh.name
+            if (name.includes('ground')) {
+                this.groundMesh = mesh
+            } else if (name.includes('collider')) {
+                this.colliders.push(mesh)
+            } else if (name.includes('visual')) {
+                this.visuals.push(mesh)
+                this.objectMap.set(`${name.replace('_visual', '_collider')}`, mesh);
+            }
+        }
+    }
+
+    createGround() {
+        this.scene.add(this.groundMesh);
+        const position = this.groundMesh.position
+        const RAPIER = this.RAPIER
+        // 创建地面
+        const geo = this.groundMesh.geometry;
+        if (!geo.attributes || !geo.index) return null;
+        const vertices = new Float32Array(geo.attributes.position.array);
+        const indices = new Uint32Array(geo.index.array); // 注意这里改用 Uint32Array
+        const groundColliderDesc = RAPIER.ColliderDesc.trimesh(vertices, indices);
+        const groundBody = this.world.createRigidBody(
+            RAPIER.RigidBodyDesc.fixed()
+                .setTranslation(position.x, position.y, position.z)
+        );
+        this.world.createCollider(groundColliderDesc, groundBody);
+    }
+
+    setPhyiscsForSceneObjects() {
+        const RAPIER = this.RAPIER
+
+        this.colliders.forEach(item => {
+            const position = item.position
+            const bodyDesc = RAPIER.RigidBodyDesc.fixed()
+                .setTranslation(
+                    position.x,
+                    position.y,
+                    position.z
+                );
+            const rigidBody = this.world.createRigidBody(bodyDesc);
+            const geo = item.geometry;
+            if (!geo.attributes || !geo.index) return null;
+            const vertices = new Float32Array(geo.attributes.position.array);
+            const indices = new Uint32Array(geo.index.array); // 注意这里改用 Uint32Array
+            const colliderDesc = RAPIER.ColliderDesc.trimesh(vertices, indices);
+            this.world.createCollider(colliderDesc, rigidBody);
+
+            this.physicsObjects.push({ body: rigidBody, mesh: this.objectMap.get(item.name) });
+        });
+    }
+
+    // 角色移动
+    moveCharacter() {
+        const keys = this.keys
+
+        const linvel = this.characterBody.linvel();
+        let moveX = 0;
+        let moveZ = 0;
+
+        if (keys.w) moveZ -= this.moveSpeed;
+        if (keys.s) moveZ += this.moveSpeed;
+        if (keys.a) moveX -= this.moveSpeed;
+        if (keys.d) moveX += this.moveSpeed;
+        if (moveX !== 0 || moveZ !== 0) {
+            // 计算角色的旋转角度
+            // 标准化移动向量
+            const moveVector = new THREE.Vector2(moveX, moveZ).normalize();
+
+            // 创建目标旋转
+            const targetRotation = new THREE.Quaternion();
+            targetRotation.setFromAxisAngle(
+                new THREE.Vector3(0, 1, 0),
+                Math.atan2(moveVector.x, moveVector.y)
+            );
+
+            // 平滑插值到目标旋转
+            this.player.mesh.quaternion.slerp(targetRotation, this.rotationSpeed);
+        }
+        // 设置速度
+        this.characterBody.setLinvel({
+            x: moveX,
+            y: linvel.y,  // 保持原有的Y轴速度（重力影响）
+            z: moveZ
+        }, true);
+
     }
 
 
@@ -443,6 +590,18 @@ export class Game {
         this.checkAttack();
         this.updateCamera()
 
+        // 角色移动
+        this.moveCharacter()
+        // 物理世界步进
+        this.world.step();
+        // 更新所有物体的位置和旋转
+        for (const obj of this.physicsObjects) {
+            const position = obj.body.translation();
+            const rotation = obj.body.rotation();
+            if (obj.mesh)
+                obj.mesh.position.set(position.x, position.y, position.z);
+            // obj.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+        }
         this.renderer.render(this.scene, this.camera);
     }
 
