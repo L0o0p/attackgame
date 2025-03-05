@@ -6,6 +6,10 @@ import { Player } from './entity/player';
 import { Equipment } from './entity/equipment';
 import { PhysicsSystem } from './physicSystem';
 import { Sound } from './sound';
+// src/main.js 或其他入口文件
+import { Mesh, AnimationMixer, AnimationClip, LoopOnce } from 'three';
+import overwrite from './overwrite';
+overwrite(Mesh, AnimationMixer, AnimationClip, LoopOnce);
 
 export const CharacterStates = {
     IDLE: 'idle',
@@ -250,6 +254,8 @@ export class Game {
 
     async initSound() {
         await this.sound.loadSound(CharacterStates.ATTACK, 'sounds/attack.mp3');
+        await this.sound.loadSound(CharacterStates.ATTACKWITHSWORD, 'sounds/attackWithSword.mp3');
+        await this.sound.loadSound(CharacterStates.WALK, 'sounds/walk.wav');
     }
 
     // 分拣glb载入的场景中的物体
@@ -452,10 +458,6 @@ export class Game {
         document.addEventListener('keydown', this.boundKeyDown);
         document.addEventListener('keyup', this.boundKeyUp);
         window.addEventListener('resize', this.onWindowResize);
-        document.addEventListener('click', async () => {
-                // 加载音频资源
-            this.sound.playSound(CharacterStates.ATTACK);
-        });
     }
 
     handleKeyDown(event) {

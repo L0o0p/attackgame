@@ -31,17 +31,15 @@ export class Character {
     }
 
     initListeners() {
+
         this.mixer.addEventListener('finished', () => {
-            this.fireListener(this.currentAction._clip.name.replace('_Armature', ''), 'finished')
-        })
-        this.mixer.addEventListener('finished', () => {
-            this.fireListener(this.currentAction._clip.name.replace('_Armature', ''), 'finished')
+            this.fireListener(this.currentAction._clip.name.replace('_Armature', '').toLocaleLowerCase(), 'finished')
         })
         this.mixer.addEventListener('loop', () => {
-            this.fireListener(this.currentAction._clip.name.replace('_Armature',''), 'loop')
+            this.fireListener(this.currentAction._clip.name.replace('_Armature', '').toLocaleLowerCase(), 'loop')
         })
         this.mixer.addEventListener('half', () => {
-            this.fireListener(this.currentAction._clip.name.replace('_Armature', ''), 'half')
+            this.fireListener(this.currentAction._clip.name.replace('_Armature', '').toLocaleLowerCase(), 'half')
         })
     }
 
@@ -63,11 +61,20 @@ export class Character {
     }
 
     syncAnimSound() {
-        this.on(CharacterStates.ATTACK, 'finished', () => {
+        this.on(CharacterStates.ATTACK, 'half', () => {
             console.log('攻击动画半程触发，播放音效');
             if (this.sound) {
                 console.log(this.sound);
                 this.sound.playSound(CharacterStates.ATTACK); 
+            } else {
+                console.warn('sound 未初始化');
+            }
+        })
+        this.on(CharacterStates.ATTACKWITHSWORD.toLocaleLowerCase(), 'half', () => {
+            console.log('攻击动画半程触发，播放音效');
+            if (this.sound) {
+                console.log(this.sound);
+                this.sound.playSound(CharacterStates.ATTACKWITHSWORD.toLocaleLowerCase());
             } else {
                 console.warn('sound 未初始化');
             }
@@ -84,17 +91,22 @@ export class Character {
     }
 
     setupActions(animations) {
+        // 首先为所有可能的状态创建监听器
+        Object.values(CharacterStates).forEach(state => {
+            this.listeners.set(state.toLowerCase(), new Map());
+            console.log(`注册监听器: ${state.toLowerCase()}`);
+        });
 
+        // 然后处理动画
         animations.forEach(clip => {
             const name = clip.name.replace('_Armature', '').toLowerCase();
             const action = this.mixer.clipAction(clip);
             if (name === 'die') {
-                action.clampWhenFinished = true; // 关键属性：动画结束时停在最后一帧
-                action.loop = THREE.LoopOnce; // 只播放一次
+                action.clampWhenFinished = true;
+                action.loop = THREE.LoopOnce;
             }
             this.actions.set(name, action);
-            this.listeners.set(name, new Map())
-            console.log(`注册动作: ${name}`); // 检查动作注册
+            console.log(`注册动作: ${name}`);
         });
 
         // 播放初始动画
