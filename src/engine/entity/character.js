@@ -1,6 +1,6 @@
 // 集成角色模型网格、动画、状态管理
 import * as THREE from 'three';
-import { CharacterStates } from '../game';
+import { CharacterStates } from '../engine';
 
 export class Character {
     constructor(
@@ -65,7 +65,7 @@ export class Character {
             console.log('攻击动画半程触发，播放音效');
             if (this.sound) {
                 console.log(this.sound);
-                this.sound.playSound(CharacterStates.ATTACK); 
+                this.sound.playSound(CharacterStates.ATTACK);
             } else {
                 console.warn('sound 未初始化');
             }
@@ -79,15 +79,21 @@ export class Character {
                 console.warn('sound 未初始化');
             }
         })
+        this.on(CharacterStates.HIT, 'half', () => {
+            console.log('受伤动画半程触发，播放音效');
+            if (this.sound) {
+                console.log(this.sound);
+                this.sound.playSound(CharacterStates.HIT);
+            } else {
+                console.warn('sound 未初始化');
+            }
+        })
         this.on(CharacterStates.WALK, 'loop', () => {
             this.sound.playSound(CharacterStates.WALK)
         })
         this.on(CharacterStates.WALK, 'half', () => {
             this.sound.playSound(CharacterStates.WALK)
         })
-        // this.on(SHIELD, 'start', () => {
-        //     this.sound.playSound(WARD)
-        // })
     }
 
     setupActions(animations) {
@@ -122,13 +128,13 @@ export class Character {
         newAction.play();
 
         this.currentAction = newAction;
-        
+
     }
 
     switchAnimation(newAction) {
         // const newAction = this.actions.get(actionName);
         // if (!newAction) return;
- 
+
         if (this.currentAction && this.currentAction !== newAction) {
             this.currentAction.fadeOut(0.2);
         }
@@ -171,7 +177,7 @@ export class Character {
                 CharacterStates.ATTACKWITHSWORD : CharacterStates.ATTACK
             const attackAction = this.actions.get(actionName);
             console.log('attackAction', attackAction);
-            
+
             if (this.currentAction && this.currentAction !== attackAction) {
                 this.currentAction.fadeOut(0.2);
             }

@@ -4,8 +4,8 @@ import { UI } from '../ui/ui';
 import { Enemy } from './entity/enemy';
 import { Player } from './entity/player';
 import { Equipment } from './entity/equipment';
-import { PhysicsSystem } from './physicSystem';
-import { Sound } from './sound';
+import { PhysicsSystem } from './manager/physicSystem';
+import { Sound } from './manager/sound';
 // src/main.js 或其他入口文件
 import { Mesh, AnimationMixer, AnimationClip, LoopOnce } from 'three';
 import overwrite from './overwrite';
@@ -49,7 +49,7 @@ export class Game {
             characterState: CharacterStates.IDLE,
             maxHealth: 100,
             currentHealth: 100,
-            damage: 50,
+            damage: 20,
         };
 
         // 物理
@@ -85,6 +85,7 @@ export class Game {
 
     async initialize() {
 
+        await this.initSound()
 
         // 加载模型
         const loader = new GLTFLoader();
@@ -137,10 +138,11 @@ export class Game {
                 characterState: CharacterStates.IDLE,
                 maxHealth: 100,
                 currentHealth: 100,
-                damage: 15,
+                damage: 5,
                 isHit: false,
                 hitCooldown: 0 / 2,
             } // 参数
+            , this.sound
         )
 
         this.npc2 = new Enemy(
@@ -153,10 +155,11 @@ export class Game {
                 characterState: CharacterStates.IDLE,
                 maxHealth: 100,
                 currentHealth: 100,
-                damage: 15,
+                damage: 5,
                 isHit: false,
                 hitCooldown: 0,
             } // 参数
+            , this.sound
         )
 
         this.npc3 = new Enemy(
@@ -169,10 +172,11 @@ export class Game {
                 characterState: CharacterStates.IDLE,
                 maxHealth: 100,
                 currentHealth: 100,
-                damage: 15,
+                damage: 5,
                 isHit: false,
                 hitCooldown: 0,
             } // 参数
+            , this.sound
         )
 
         this.allNpc.push(this.npc1, this.npc2, this.npc3)
@@ -246,7 +250,6 @@ export class Game {
         this.cameraTarget = this.player.mesh;// playerMesh
         this.camera.lookAt(this.cameraTarget.position);
 
-        this.initSound()
 
         // 添加事件监听
         this.addEventListeners();
@@ -256,6 +259,7 @@ export class Game {
         await this.sound.loadSound(CharacterStates.ATTACK, 'sounds/attack.mp3');
         await this.sound.loadSound(CharacterStates.ATTACKWITHSWORD, 'sounds/attackWithSword.mp3');
         await this.sound.loadSound(CharacterStates.WALK, 'sounds/walk.wav');
+        await this.sound.loadSound(CharacterStates.HIT, 'sounds/hit.mp3');
     }
 
     // 分拣glb载入的场景中的物体
@@ -358,7 +362,7 @@ export class Game {
                     this.player.equip(new Equipment(
                         "SWORD",
                         collectible.mesh,
-                        { damage: 50 }
+                        { damage: 20 }
                     ))
                 }
                 // 玩家变色效果

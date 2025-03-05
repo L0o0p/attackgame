@@ -1,5 +1,5 @@
 import { Character } from "./character";
-import { CharacterStates } from "../game";
+import { CharacterStates } from "../engine";
 import * as THREE from 'three';
 
 export class Enemy extends Character {
@@ -8,8 +8,9 @@ export class Enemy extends Character {
         mesh,
         animations,
         attributes,
+        sound  // 添加 sound 参数
     ) {
-        super(characterName, mesh, animations, attributes);
+        super(characterName, mesh, animations, attributes, sound  );
         this.attackRange = 1.3; // 攻击范围
         this.detectionRange = 2.5; // 检测范围
         this.attackCooldown = 0; // 实际攻击冷却
