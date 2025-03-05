@@ -1,6 +1,5 @@
 // 集成角色模型网格、动画、状态管理
 import * as THREE from 'three';
-import { CharacterStates } from '../game';
 import { Character } from './character';
 
 export class Player extends Character {
@@ -14,12 +13,14 @@ export class Player extends Character {
         swordMesh
         // 物理
         ,characterBody
+        ,sound,
     ) {
         super(
             characterName,
             mesh,
             animations,
             attributes,
+            sound,
         );
         // 额外
         this.keys = keys

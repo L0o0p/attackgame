@@ -8,6 +8,7 @@ export class Character {
         mesh,
         animations,
         attributes,
+        sound,
     ) {
         this.characterName = characterName
         this.mesh = mesh;
@@ -18,10 +19,68 @@ export class Character {
         this.currentAction = null;
         this.mixer = new THREE.AnimationMixer(this.mesh);
         this.clock = new THREE.Clock();
+
+        this.sound = sound
+        this.listeners = new Map()// 动作监听器
+        this.initListeners()
         this.setupActions(animations)
         this.transitionTo(CharacterStates.IDLE);
+        this.syncAnimSound() // 注册动作和声音的同步
 
         this.equipment = []
+    }
+
+    initListeners() {
+        this.mixer.addEventListener('finished', () => {
+            this.fireListener(this.currentAction._clip.name.replace('_Armature', ''), 'finished')
+        })
+        this.mixer.addEventListener('finished', () => {
+            this.fireListener(this.currentAction._clip.name.replace('_Armature', ''), 'finished')
+        })
+        this.mixer.addEventListener('loop', () => {
+            this.fireListener(this.currentAction._clip.name.replace('_Armature',''), 'loop')
+        })
+        this.mixer.addEventListener('half', () => {
+            this.fireListener(this.currentAction._clip.name.replace('_Armature', ''), 'half')
+        })
+    }
+
+    fireListener(name, event) {
+        console.log(`尝试触发事件: ${name}, ${event}`);
+        const listener = this.listeners.get(name);
+        if (!listener) {
+            console.warn(`未找到${name}的监听器`);
+            return;
+        }
+        if (listener.get(event)) {
+            console.log(`执行${name}的${event}事件`);
+            listener.get(event)();
+        }
+    }
+
+    on(name, event, callback) {// 名字、触发事件、触发音频组
+        this.listeners.get(name).set(event, callback)
+    }
+
+    syncAnimSound() {
+        this.on(CharacterStates.ATTACK, 'finished', () => {
+            console.log('攻击动画半程触发，播放音效');
+            if (this.sound) {
+                console.log(this.sound);
+                this.sound.playSound(CharacterStates.ATTACK); 
+            } else {
+                console.warn('sound 未初始化');
+            }
+        })
+        this.on(CharacterStates.WALK, 'loop', () => {
+            this.sound.playSound(CharacterStates.WALK)
+        })
+        this.on(CharacterStates.WALK, 'half', () => {
+            this.sound.playSound(CharacterStates.WALK)
+        })
+        // this.on(SHIELD, 'start', () => {
+        //     this.sound.playSound(WARD)
+        // })
     }
 
     setupActions(animations) {
@@ -34,7 +93,8 @@ export class Character {
                 action.loop = THREE.LoopOnce; // 只播放一次
             }
             this.actions.set(name, action);
-
+            this.listeners.set(name, new Map())
+            console.log(`注册动作: ${name}`); // 检查动作注册
         });
 
         // 播放初始动画
@@ -56,10 +116,12 @@ export class Character {
     switchAnimation(newAction) {
         // const newAction = this.actions.get(actionName);
         // if (!newAction) return;
-
+ 
         if (this.currentAction && this.currentAction !== newAction) {
             this.currentAction.fadeOut(0.2);
         }
+        console.log(this.currentAction._clip.name);
+
         newAction.reset();
         newAction.fadeIn(0.2);
         newAction.play();

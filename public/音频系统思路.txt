@@ -1,0 +1,51 @@
+理清思路
+
+最终目的：
+在自己的项目中以相似的原理实现「功能」并且工程化
+1. 实现「功能」
+2. 掌握类似的原理
+3. 工程化
+
+看教程和reference的目的：
+1. 理解原理
+2. 实现功能
+
+原理：
+1. 载入音频
+2. 把音频做成map方便调用
+3. 让音频和动画挂钩，播放动画的时候自动播放音频，实现：
+
+  syncAnimSound() {
+    this.animator.on(ATTACK, 'half', () => {
+      this.sound.play(YELL)
+    })
+    this.animator.on(RUN, 'loop', () => {
+      this.sound.play(STEP_R[this.ground])
+    })
+    this.animator.on(RUN, 'half', () => {
+      this.sound.play(STEP_L[this.ground])
+    })
+    this.animator.on(SHIELD, 'start', () => {
+      this.sound.play(WARD)
+    })
+  }
+
+animator（自定义的动画管理器）
+1. 跟人物动画使用的是同一个
+    在load人物动画的同时，设置对应的音频this.listeners.set(name, new Map())
+
+2. 动画管理器的核心是this.mixer = new AnimationMixer(mesh)
+     对于这个mixr添加监听
+  initListeners() {
+    this.mixer.addEventListener('loop', () => {
+      this.fireListener( this.current._clip.name, 'loop')
+    })
+    this.mixer.addEventListener('half', () => {
+      this.fireListener( this.current._clip.name, 'half')
+    })
+  }
+
+
+  on(name, event, callback) {// 名字、触发事件、触发音频组
+    this.listeners.get(name).set(event, callback)
+  }

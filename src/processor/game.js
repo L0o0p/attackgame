@@ -5,6 +5,7 @@ import { Enemy } from './entity/enemy';
 import { Player } from './entity/player';
 import { Equipment } from './entity/equipment';
 import { PhysicsSystem } from './physicSystem';
+import { Sound } from './sound';
 
 export const CharacterStates = {
     IDLE: 'idle',
@@ -18,12 +19,15 @@ export const CharacterStates = {
 export class Game {
     constructor() {
         // 场景和摄像机
-        this.scene = null;
-        this.camera = null;
+        // 初始化场景
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.renderer = new THREE.WebGLRenderer();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(this.renderer.domElement);
         this.cameraTarget = null;// playerMesh
         this.cameraOffset = new THREE.Vector3(0, 5, 10);
         this.smoothness = 0.1; // 相机移动平滑度
-        this.renderer = null;
 
         // 可收集物品数组
         this.collectibles = [];
@@ -65,6 +69,7 @@ export class Game {
 
         // 初始化UI
         this.ui = new UI(this);
+        this.sound = new Sound(this.camera);
 
         // 绑定方法
         this.animate = this.animate.bind(this);
@@ -75,12 +80,7 @@ export class Game {
     }
 
     async initialize() {
-        // 初始化场景
-        this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.renderer = new THREE.WebGLRenderer();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(this.renderer.domElement);
+
 
         // 加载模型
         const loader = new GLTFLoader();
@@ -195,7 +195,8 @@ export class Game {
             this.world,
             this.colliders,
             this.physicsObjects,
-            this.objectMap
+            this.objectMap,
+            this.sound
         );
 
         this.createGround()
@@ -224,6 +225,7 @@ export class Game {
             , this.keys
             , swordObject
             , this.characterBody
+            ,this.sound
         )
 
         this.saveOriginalColors()
@@ -240,8 +242,14 @@ export class Game {
         this.cameraTarget = this.player.mesh;// playerMesh
         this.camera.lookAt(this.cameraTarget.position);
 
+        this.initSound()
+
         // 添加事件监听
         this.addEventListeners();
+    }
+
+    async initSound() {
+        await this.sound.loadSound(CharacterStates.ATTACK, 'sounds/attack.mp3');
     }
 
     // 分拣glb载入的场景中的物体
@@ -444,6 +452,10 @@ export class Game {
         document.addEventListener('keydown', this.boundKeyDown);
         document.addEventListener('keyup', this.boundKeyUp);
         window.addEventListener('resize', this.onWindowResize);
+        document.addEventListener('click', async () => {
+                // 加载音频资源
+            this.sound.playSound(CharacterStates.ATTACK);
+        });
     }
 
     handleKeyDown(event) {
