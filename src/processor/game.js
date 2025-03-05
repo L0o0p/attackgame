@@ -91,7 +91,7 @@ export class Game {
             loader.loadAsync('/models/gamelike.glb'),
             loader.loadAsync('/models/swordR.glb'),
             loader.loadAsync('/models/hamburger.glb'),
-            loader.loadAsync('/models/test.glb'),
+            loader.loadAsync('/models/scene.glb'),
         ]);
         const swordObject = loadedData.scene.getObjectByName("sword");
         swordObject.position.add({ x: 0.2, y: 0.09, z: -0.2 });
@@ -374,7 +374,7 @@ export class Game {
         }
     }
 
-    setColor(character, color = 0x00ff00) {
+    setColor(character, color = 0xff0000) {
         character.traverse((child) => {
             if (child.isMesh) {
                 // 克隆材质以避免影响其他使用相同材质的网格
