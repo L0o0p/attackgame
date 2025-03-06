@@ -30,7 +30,9 @@ export const stepSounds = {
     },
     ATTACK :'sounds/attack.mp3',
     ATTACKWITHSWORD :'sounds/attackWithSword.mp3',
-    HIT : 'sounds/hit.mp3'
+    HIT: 'sounds/hit.mp3',
+    GETSWORD: 'sounds/getSword.mp3',
+    HEALUP: 'sounds/healUp.mp3'
 }
 
 export class Game {
@@ -280,7 +282,9 @@ export class Game {
         await this.sound.loadSound(stepSounds.HIT);
         await this.sound.loadSound(stepSounds.WALK.soil);
         await this.sound.loadSound(stepSounds.WALK.water);
-        await this.sound.loadSound(stepSounds.WALK.wood); 
+        await this.sound.loadSound(stepSounds.WALK.wood);
+        await this.sound.loadSound(stepSounds.GETSWORD);
+        await this.sound.loadSound(stepSounds.HEALUP); 
     }
 
     // 分拣glb载入的场景中的物体
@@ -387,11 +391,13 @@ export class Game {
                     console.log('heal'), this.heal(true, 50)
                     this.scene.remove(collectible.mesh);
                     collectibles.splice(i, 1);// 
+                    this.sound.playSound(stepSounds.HEALUP)
                 }
                 // 收集物品
                 if (collectible.equipmentName === 'SWORD' && this.player.equipment.length < 3) {
                     this.scene.remove(collectible.mesh);
                     collectibles.splice(i, 1);// 
+                    this.sound.playSound(stepSounds.GETSWORD)
                     this.player.pickupSword()
                     this.ui.addItem({
                         name: 'SWORD',
