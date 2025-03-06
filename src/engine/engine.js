@@ -10,6 +10,8 @@ import { Sound } from './manager/sound';
 import { Mesh, AnimationMixer, AnimationClip, LoopOnce } from 'three';
 import overwrite from './overwrite';
 overwrite(Mesh, AnimationMixer, AnimationClip, LoopOnce);
+import {Area} from './manager/area'
+import { log } from 'three/tsl';
 
 export const CharacterStates = {
     IDLE: 'idle',
@@ -19,6 +21,17 @@ export const CharacterStates = {
     HIT: 'hit',
     DEATH: 'die'
 };
+
+export const stepSounds = {
+    WALK : {
+        soil: 'sounds/walkLightly.wav',
+        water: 'sounds/walkWater.mp3',
+        wood: 'sounds/walkHeavy.wav'
+    },
+    ATTACK :'sounds/attack.mp3',
+    ATTACKWITHSWORD :'sounds/attackWithSword.mp3',
+    HIT : 'sounds/hit.mp3'
+}
 
 export class Game {
     constructor() {
@@ -74,6 +87,8 @@ export class Game {
         // 初始化UI
         this.ui = new UI(this);
         this.sound = new Sound(this.camera);
+        this.areaMeshes = [];
+        this.areaBoxes = []
 
         // 绑定方法
         this.animate = this.animate.bind(this);
@@ -98,6 +113,7 @@ export class Game {
             loader.loadAsync('/models/hamburger.glb'),
             loader.loadAsync('/models/scene.glb'),
         ]);
+
         const swordObject = loadedData.scene.getObjectByName("sword");
         swordObject.position.add({ x: 0.2, y: 0.09, z: -0.2 });
         swordObject.visible = false;
@@ -198,6 +214,9 @@ export class Game {
         this.world = new RAPIER.World({ x: 0.0, y: -9.81, z: 0.0 });
         this.sortObjects(sceneMesh)
 
+        this.initArea() 
+        this.visualizeAreas()
+
         this.physics = new PhysicsSystem(
             this.RAPIER,
             this.world,
@@ -256,10 +275,12 @@ export class Game {
     }
 
     async initSound() {
-        await this.sound.loadSound(CharacterStates.ATTACK, 'sounds/attack.mp3');
-        await this.sound.loadSound(CharacterStates.ATTACKWITHSWORD, 'sounds/attackWithSword.mp3');
-        await this.sound.loadSound(CharacterStates.WALK, 'sounds/walk.wav');
-        await this.sound.loadSound(CharacterStates.HIT, 'sounds/hit.mp3');
+        await this.sound.loadSound(stepSounds.ATTACK);
+        await this.sound.loadSound(stepSounds.ATTACKWITHSWORD);
+        await this.sound.loadSound(stepSounds.HIT);
+        await this.sound.loadSound(stepSounds.WALK.soil);
+        await this.sound.loadSound(stepSounds.WALK.water);
+        await this.sound.loadSound(stepSounds.WALK.wood); 
     }
 
     // 分拣glb载入的场景中的物体
@@ -281,8 +302,27 @@ export class Game {
             } else if (name.includes('visual')) {
                 this.visuals.push(mesh)
                 this.objectMap.set(`${name.replace('_visual', '_collider')}`, mesh);
+            } else if (name.includes('area')) {
+                this.areaMeshes.push(mesh)
             }
         }
+    }
+
+    initArea() {
+        this.areaMeshes.forEach( mesh => {
+            this.areaBoxes.push(new Area(mesh))
+        });
+    }
+
+    visualizeAreas() {
+        this.areaBoxes.forEach(area => {
+            const helper = new THREE.Box3Helper(area, new THREE.Color(
+                area.type === 'grass' ? 0x00ff00 :
+                    area.type === 'water' ? 0x0000ff :
+                        area.type === 'wood' ? 0x8b4513 : 0xffffff
+            ));
+            this.scene.add(helper);
+        });
     }
 
     createGround() {
@@ -543,11 +583,11 @@ export class Game {
     animate() {
         requestAnimationFrame(this.animate);
 
-        this.player.updateAll()
+        this.player.updateAll(this.areaBoxes)
         this.checkCollisions()
         this.allNpc.forEach(npc => {
             npc.updateBehavior(this.player, this);
-            npc.updateAll();
+            npc.updateAll(this.areas);
         });
         this.checkAttack();
         this.updateCamera()

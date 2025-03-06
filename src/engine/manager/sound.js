@@ -5,44 +5,48 @@ export class Sound {
         camera.add(this.listener);
         this.audioLoader = new THREE.AudioLoader();
         this.sounds = new Map();
+        this.tracks = new Map()
+
     }
 
     // 加载音频
-    loadSound(name, url) {
-        return new Promise((resolve, reject) => {
-            // 创建音频对象
-            const sound = new THREE.Audio(this.listener);
-
-            // 加载并设置音频缓冲区
-            this.audioLoader.load(
-                url,
-                (buffer) => {
-                    sound.setBuffer(buffer);
-                    sound.setVolume(1.0);
-                    this.sounds.set(name, sound);
-                    resolve(sound);
-                },
-                // 加载进度回调
-                (progress) => {
-                    console.log((progress.loaded / progress.total * 100) + '%');
-                },
-                // 错误回调
-                (error) => {
-                    console.error('加载音频失败:', error);
-                    reject(error);
-                }
-            );
-        });
+    async loadSound(key) {
+        const srcs = getSrc(key)
+        console.log(srcs);
+        const track = []
+        for (const src of srcs) {
+            const audio = new Audio(src)
+            track.push(audio)
+        }
+        this.tracks.set(key, track)
     }
 
     // 播放音频
-    playSound(name) {
-        const sound = this.sounds.get(name);
-        if (sound && sound.buffer) {
-            if (sound.isPlaying) {
-                sound.stop();
-            }
-            sound.play();
-        }
+    playSound(key) {
+        console.log('key', key);
+        const track = this.tracks.get(key)        
+        const index = randomInt(track.length)
+        track[index].currentTime = 0
+        console.log(track[index]);
+        track[index].play()
     }
+}
+const reg = /\[(.*?)\]/
+// 真个函数的功能是将字符串中的[]替换为对应的值
+export function getSrc(src) {
+    const match = src.match(reg)
+    if (match !== null) {
+        const range = match[1].split('-')
+        const iBegin = parseInt(range[0], 10)
+        const iEnd = parseInt(range[1], 10)
+        const size = iEnd - iBegin + 1
+        const source = src.split('[')[0]
+        const ext = src.split(']')[1]
+        return new Array(size).fill(null).map((e, i) => source + (i + iBegin) + ext)
+    }
+    return [src]
+}
+
+export function randomInt(range = 1) {
+    return Math.floor(Math.random() * range)
 }

@@ -1,6 +1,7 @@
 // 集成角色模型网格、动画、状态管理
 import * as THREE from 'three';
 import { CharacterStates } from '../engine';
+import { stepSounds } from '../engine';
 
 export class Character {
     constructor(
@@ -28,6 +29,8 @@ export class Character {
         this.syncAnimSound() // 注册动作和声音的同步
 
         this.equipment = []
+
+        this.ground = null // 角色所在区域
     }
 
     initListeners() {
@@ -44,14 +47,12 @@ export class Character {
     }
 
     fireListener(name, event) {
-        console.log(`尝试触发事件: ${name}, ${event}`);
         const listener = this.listeners.get(name);
         if (!listener) {
             console.warn(`未找到${name}的监听器`);
             return;
         }
         if (listener.get(event)) {
-            console.log(`执行${name}的${event}事件`);
             listener.get(event)();
         }
     }
@@ -62,10 +63,9 @@ export class Character {
 
     syncAnimSound() {
         this.on(CharacterStates.ATTACK, 'half', () => {
-            console.log('攻击动画半程触发，播放音效');
             if (this.sound) {
                 console.log(this.sound);
-                this.sound.playSound(CharacterStates.ATTACK);
+                this.sound.playSound(stepSounds.ATTACK);
             } else {
                 console.warn('sound 未初始化');
             }
@@ -74,25 +74,24 @@ export class Character {
             console.log('攻击动画半程触发，播放音效');
             if (this.sound) {
                 console.log(this.sound);
-                this.sound.playSound(CharacterStates.ATTACKWITHSWORD.toLocaleLowerCase());
+                this.sound.playSound(stepSounds.ATTACKWITHSWORD);
             } else {
                 console.warn('sound 未初始化');
             }
         })
         this.on(CharacterStates.HIT, 'half', () => {
-            console.log('受伤动画半程触发，播放音效');
             if (this.sound) {
-                console.log(this.sound);
-                this.sound.playSound(CharacterStates.HIT);
+                this.sound.playSound(stepSounds.HIT);
             } else {
                 console.warn('sound 未初始化');
             }
         })
         this.on(CharacterStates.WALK, 'loop', () => {
-            this.sound.playSound(CharacterStates.WALK)
+            this.sound.playSound(stepSounds.WALK[this.ground])
         })
+
         this.on(CharacterStates.WALK, 'half', () => {
-            this.sound.playSound(CharacterStates.WALK)
+            this.sound.playSound(stepSounds.WALK[this.ground])
         })
     }
 
@@ -100,7 +99,6 @@ export class Character {
         // 首先为所有可能的状态创建监听器
         Object.values(CharacterStates).forEach(state => {
             this.listeners.set(state.toLowerCase(), new Map());
-            console.log(`注册监听器: ${state.toLowerCase()}`);
         });
 
         // 然后处理动画
@@ -112,7 +110,6 @@ export class Character {
                 action.loop = THREE.LoopOnce;
             }
             this.actions.set(name, action);
-            console.log(`注册动作: ${name}`);
         });
 
         // 播放初始动画
@@ -138,7 +135,6 @@ export class Character {
         if (this.currentAction && this.currentAction !== newAction) {
             this.currentAction.fadeOut(0.2);
         }
-        console.log(this.currentAction._clip.name);
 
         newAction.reset();
         newAction.fadeIn(0.2);
@@ -176,7 +172,6 @@ export class Character {
             const actionName = (this.equipment.some(n => n.equipmentName === 'SWORD')) ?
                 CharacterStates.ATTACKWITHSWORD : CharacterStates.ATTACK
             const attackAction = this.actions.get(actionName);
-            console.log('attackAction', attackAction);
 
             if (this.currentAction && this.currentAction !== attackAction) {
                 this.currentAction.fadeOut(0.2);
@@ -184,8 +179,6 @@ export class Character {
             if (attackAction) {
                 attackAction.setLoop(THREE.LoopOnce);
                 attackAction.clampWhenFinished = true;
-                // const hasAlice = users.some(user => user.name === 'Alice');
-                // console.log(hasAlice); // true
                 this.switchAnimation(attackAction)
                 const mixer = attackAction.getMixer()
                 const onFinished = (e) => {
@@ -247,6 +240,28 @@ export class Character {
 
     }
 
+    // 修改角色的更新方法
+    updateGround(areaBoxes) {
+        if (!Array.isArray(areaBoxes) || areaBoxes.length === 0) return;
+
+        const position = this.mesh.position;
+        let smallestArea = null;
+        let smallestVolume = Infinity;
+
+        // 检查所有包含当前位置的区域
+        for (let areaBox of areaBoxes) {
+            const result = areaBox.in(position);
+            if (result && result.volume < smallestVolume) {
+                smallestVolume = result.volume;
+                smallestArea = result.type;
+            }
+        }
+
+        if (smallestArea) {
+            this.ground = smallestArea;
+        }
+    }
+
     updateCharacter() {
         // 【目标如果已死亡，就不要再让它切换动画】
         if (this.attributes.characterState === CharacterStates.DEATH) {
@@ -266,10 +281,13 @@ export class Character {
 
     }
 
-    updateAll() {
+    updateAll(areaBoxes) {
         const delta = this.clock.getDelta();
         this.mixer.update(delta)
         this.updateCharacter()
+        if (areaBoxes) {  // 添加条件检查
+            this.updateGround(areaBoxes);
+        }
     }
 
 }
