@@ -11,7 +11,6 @@ import { Mesh, AnimationMixer, AnimationClip, LoopOnce } from 'three';
 import overwrite from './overwrite';
 overwrite(Mesh, AnimationMixer, AnimationClip, LoopOnce);
 import {Area} from './manager/area'
-import { log } from 'three/tsl';
 
 export const CharacterStates = {
     IDLE: 'idle',
@@ -101,30 +100,22 @@ export class Game {
     }
 
     async initialize() {
-
+        // 加载音频
         await this.initSound()
-
         // 加载模型
-        const loader = new GLTFLoader();
-        const [loadedData, loadedData1, loadedData2, loadedData3, swordData, hamburgerData, sceneData] = await Promise.all([
-            loader.loadAsync('/models/PlayerWithSword.glb'),
-            loader.loadAsync('/models/gamelike.glb'),
-            loader.loadAsync('/models/gamelike.glb'),
-            loader.loadAsync('/models/gamelike.glb'),
-            loader.loadAsync('/models/swordR.glb'),
-            loader.loadAsync('/models/hamburger.glb'),
-            loader.loadAsync('/models/scene.glb'),
-        ]);
+        const { playerData, npc1Data, npc2Data, npc3Data, swordData, hamburgerData, sceneData } = await this.loadModels()
+        
+        this.setMeshTransformations()
 
-        const swordObject = loadedData.scene.getObjectByName("sword");
+        const swordObject = playerData.scene.getObjectByName("sword");
         swordObject.position.add({ x: 0.2, y: 0.09, z: -0.2 });
         swordObject.visible = false;
 
         // 设置玩家和目标
-        this.playerMesh = loadedData.scene;
-        const npc1Mesh = loadedData1.scene;
-        const npc2Mesh = loadedData2.scene;
-        const npc3Mesh = loadedData3.scene;
+        this.playerMesh = playerData.scene;
+        const npc1Mesh = npc1Data.scene;
+        const npc2Mesh = npc2Data.scene;
+        const npc3Mesh = npc3Data.scene;
         const sceneMesh = sceneData.scene
         .rotateY(Math.PI / 2);
         const healMesh = hamburgerData.scene;
@@ -149,7 +140,7 @@ export class Game {
         this.npc1 = new Enemy(
             'npc1',
             npc1Mesh,// 模型
-            loadedData1.animations,// 动画
+            npc1Data.animations,// 动画
             {
                 velocity: new THREE.Vector3(),
                 speed: 0.1 / 2,
@@ -166,7 +157,7 @@ export class Game {
         this.npc2 = new Enemy(
             'npc2',
             npc2Mesh,// 模型
-            loadedData2.animations,// 动画
+            npc2Data.animations,// 动画
             {
                 velocity: new THREE.Vector3(),
                 speed: 0.1 / 2,
@@ -183,7 +174,7 @@ export class Game {
         this.npc3 = new Enemy(
             'npc3',
             npc3Mesh,// 模型
-            loadedData3.animations,// 动画
+            npc3Data.animations,// 动画
             {
                 velocity: new THREE.Vector3(),
                 speed: 0.1 / 2,
@@ -247,7 +238,7 @@ export class Game {
         this.player = new Player(
             'player',
             this.playerMesh,// 模型
-            loadedData.animations,// 动画
+            playerData.animations,// 动画
             this.playerState // 参数
 
             // 额外
@@ -287,6 +278,23 @@ export class Game {
         await this.sound.loadSound(stepSounds.HEALUP); 
     }
 
+    async loadModels() {
+        const loader = new GLTFLoader();
+        const [playerData, npc1Data, npc2Data, npc3Data, swordData, hamburgerData, sceneData] = await Promise.all([
+            loader.loadAsync('/models/PlayerWithSword.glb'),
+            loader.loadAsync('/models/gamelike.glb'),
+            loader.loadAsync('/models/gamelike.glb'),
+            loader.loadAsync('/models/gamelike.glb'),
+            loader.loadAsync('/models/swordR.glb'),
+            loader.loadAsync('/models/hamburger.glb'),
+            loader.loadAsync('/models/scene.glb'),
+        ]);
+        return { playerData, npc1Data, npc2Data, npc3Data, swordData, hamburgerData, sceneData };
+    }
+
+    setMeshTransformations() {
+        
+    }
     // 分拣glb载入的场景中的物体
     sortObjects(sceneMesh) {
         let meshes = []

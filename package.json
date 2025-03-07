@@ -12,6 +12,7 @@
     "vite": "^6.1.0"
   },
   "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.15.0",
     "reset-css": "^5.0.2",
     "three": "^0.173.0"
   }

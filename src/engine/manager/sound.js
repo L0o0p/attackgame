@@ -12,7 +12,6 @@ export class Sound {
     // 加载音频
     async loadSound(key) {
         const srcs = getSrc(key)
-        console.log(srcs);
         const track = []
         for (const src of srcs) {
             const audio = new Audio(src)
