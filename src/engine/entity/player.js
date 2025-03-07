@@ -12,7 +12,7 @@ export class Player extends Character {
         keys,
         swordMesh
         // 物理
-        ,characterBody
+        ,physics
         ,sound,
     ) {
         super(
@@ -26,8 +26,12 @@ export class Player extends Character {
         this.keys = keys
         this.attackig = false
         this.sword = swordMesh
-        this.characterBody = characterBody
+        this.physics = physics
+        this.createBody()
     }
+    createBody() {
+        this.physics.createPlayer(this.mesh)
+}
 
     equip(newEquipment) {
         this.equipment.push(newEquipment)
@@ -47,7 +51,7 @@ export class Player extends Character {
         const speed = this.attributes.speed
         const rotationSpeed = this.attributes.rotationSpeed
 
-        const linvel = this.characterBody.linvel();
+        const linvel = this.physics.characterBody.linvel();
         let moveX = 0;
         let moveZ = 0;
         
@@ -71,7 +75,7 @@ export class Player extends Character {
             this.mesh.quaternion.slerp(targetRotation, rotationSpeed);
         }
         // 设置速度
-        this.characterBody.setLinvel({
+        this.physics.characterBody.setLinvel({
             x: moveX,
             y: linvel.y,  // 保持原有的Y轴速度（重力影响）
             z: moveZ

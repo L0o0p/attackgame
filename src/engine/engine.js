@@ -68,11 +68,8 @@ export class Game {
 
         // 物理
         this.RAPIER = null;
-        this.world = null
         this.physicsObjects = []
         this.characterBody = null
-
-        this.characterGroup = null
         this.groundMesh = null;
         this.visuals = []
         this.colliders = [];
@@ -87,6 +84,8 @@ export class Game {
 
         // 初始化UI
         this.ui = new UI(this);
+
+        // 音效管理
         this.sound = new Sound(this.camera);
         this.areaMeshes = [];
         this.areaBoxes = []
@@ -204,7 +203,6 @@ export class Game {
         const RAPIER = this.RAPIER;
 
         // 物理世界a
-        this.world = new RAPIER.World({ x: 0.0, y: -9.81, z: 0.0 });
         this.sortObjects(sceneMesh)
 
         this.initArea() 
@@ -212,7 +210,6 @@ export class Game {
 
         this.physics = new PhysicsSystem(
             this.RAPIER,
-            this.world,
             this.colliders,
             this.physicsObjects,
             this.objectMap,
@@ -223,18 +220,6 @@ export class Game {
         this.visuals.forEach(mesh => this.scene.add(mesh));
         this.setPhyiscsForSceneObjects(sceneMesh)
 
-        // 创建可控制的胶囊体角色
-        const characterRadius = 0.5;
-        const characterHeight = 0.1;
-        const characterDesc = RAPIER.RigidBodyDesc.dynamic()
-            .setTranslation(0, 5, 0)
-            .setLinearDamping(1)  // 添加阻尼减少滑动
-            .setAngularDamping(1)
-            .lockRotations() // 锁定旋转;
-        this.characterBody = this.world.createRigidBody(characterDesc);
-        const characterCollider = RAPIER.ColliderDesc.capsule(characterHeight / 2, characterRadius);
-        this.world.createCollider(characterCollider, this.characterBody);
-        
         this.player = new Player(
             'player',
             this.playerMesh,// 模型
@@ -244,7 +229,7 @@ export class Game {
             // 额外
             , this.keys
             , swordObject
-            , this.characterBody
+            , this.physics
             ,this.sound
         )
 
@@ -252,12 +237,8 @@ export class Game {
 
         this.player.mesh
             .position.set(0, -.58, 0);
-        // 将模型添加到组中
-        // this.characterGroup = new THREE.Group()
-        //     .rotateY(Math.PI / 2)
-        // this.characterGroup.add(this.player.mesh)
+
         this.scene.add(this.player.mesh);
-        this.physicsObjects.push({ body: this.characterBody, mesh: this.player.mesh });
 
         this.cameraTarget = this.player.mesh;// playerMesh
         this.camera.lookAt(this.cameraTarget.position);

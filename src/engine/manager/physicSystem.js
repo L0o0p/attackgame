@@ -1,20 +1,31 @@
-import Rapier from '@dimforge/rapier3d-compat';
-await Rapier.init();
 
 export class PhysicsSystem {
     constructor(
         Rapier,
-        world,
         colliders,
         physicsObjects,
         objectMap,
     ) {
         this.Rapier = Rapier;
-        this.world = world
+        this.world = new Rapier.World({ x: 0.0, y: -9.81, z: 0.0 });
         this.colliders = colliders
         this.physicsObjects = physicsObjects
         this.objectMap = objectMap
         this.characterBody = null
+    }
+
+    createPlayer(mesh) {
+        const characterRadius = 0.5;
+        const characterHeight = 0.1;
+        const characterDesc = this.Rapier.RigidBodyDesc.dynamic()
+            .setTranslation(0, 5, 0)
+            .setLinearDamping(1)  // 添加阻尼减少滑动
+            .setAngularDamping(1)
+            .lockRotations() // 锁定旋转;
+        this.characterBody = this.world.createRigidBody(characterDesc);
+        const characterCollider = this.Rapier.ColliderDesc.capsule(characterHeight / 2, characterRadius);
+        this.world.createCollider(characterCollider, this.characterBody);
+        this.physicsObjects.push({ body: this.characterBody, mesh:mesh });
     }
 
     createGround(mesh,) {
