@@ -11,6 +11,8 @@ import { Mesh, AnimationMixer, AnimationClip, LoopOnce } from 'three';
 import overwrite from './overwrite';
 overwrite(Mesh, AnimationMixer, AnimationClip, LoopOnce);
 import {Area} from './manager/area'
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js'
+import { EnemyManager } from './manager/enemyManager';
 
 export const CharacterStates = {
     IDLE: 'idle',
@@ -89,6 +91,7 @@ export class Game {
         this.sound = new Sound(this.camera);
         this.areaMeshes = [];
         this.areaBoxes = []
+        this.enemyManager =null
 
         // 绑定方法
         this.animate = this.animate.bind(this);
@@ -102,19 +105,18 @@ export class Game {
         // 加载音频
         await this.initSound()
         // 加载模型
-        const { playerData, npc1Data, npc2Data, npc3Data, swordData, hamburgerData, sceneData } = await this.loadModels()
-        
-        this.setMeshTransformations()
+        const { playerData, npcData, swordData, hamburgerData, sceneData } = await this.loadModels()
 
+        
         const swordObject = playerData.scene.getObjectByName("sword");
         swordObject.position.add({ x: 0.2, y: 0.09, z: -0.2 });
         swordObject.visible = false;
 
         // 设置玩家和目标
         this.playerMesh = playerData.scene;
-        const npc1Mesh = npc1Data.scene;
-        const npc2Mesh = npc2Data.scene;
-        const npc3Mesh = npc3Data.scene;
+        const npc1Mesh = SkeletonUtils.clone(npcData.scene); 
+        const npc2Mesh = SkeletonUtils.clone(npcData.scene); 
+        const npc3Mesh = SkeletonUtils.clone(npcData.scene); 
         const sceneMesh = sceneData.scene
         .rotateY(Math.PI / 2);
         const healMesh = hamburgerData.scene;
@@ -139,7 +141,7 @@ export class Game {
         this.npc1 = new Enemy(
             'npc1',
             npc1Mesh,// 模型
-            npc1Data.animations,// 动画
+            npcData.animations,// 动画
             {
                 velocity: new THREE.Vector3(),
                 speed: 0.1 / 2,
@@ -156,7 +158,7 @@ export class Game {
         this.npc2 = new Enemy(
             'npc2',
             npc2Mesh,// 模型
-            npc2Data.animations,// 动画
+            npcData.animations,// 动画
             {
                 velocity: new THREE.Vector3(),
                 speed: 0.1 / 2,
@@ -173,7 +175,7 @@ export class Game {
         this.npc3 = new Enemy(
             'npc3',
             npc3Mesh,// 模型
-            npc3Data.animations,// 动画
+            npcData.animations,// 动画
             {
                 velocity: new THREE.Vector3(),
                 speed: 0.1 / 2,
@@ -233,6 +235,9 @@ export class Game {
             ,this.sound
         )
 
+        this.enemyManager = new EnemyManager(npcData, this.scene, this.player, 10,this)
+
+
         this.saveOriginalColors()
 
         this.player.mesh
@@ -243,7 +248,13 @@ export class Game {
         this.cameraTarget = this.player.mesh;// playerMesh
         this.camera.lookAt(this.cameraTarget.position);
 
+        this.enemyManager.spawnWave(5, 5); // 生成5个敌人，半径30米
 
+        this.timeSinceLastWave = 0;     // 自上次生成敌人以来经过的时间
+        this.waveInterval = 30;         // 生成敌人的时间间隔（秒）
+        this.gameLevel = 1;             // 游戏难度级别
+        this.minimumEnemyCount = 5;     // 最小敌人数量
+        this.enemyWaveClock = new THREE.Clock(); // 专门用于敌人生成的时钟
         // 添加事件监听
         this.addEventListeners();
     }
@@ -261,21 +272,16 @@ export class Game {
 
     async loadModels() {
         const loader = new GLTFLoader();
-        const [playerData, npc1Data, npc2Data, npc3Data, swordData, hamburgerData, sceneData] = await Promise.all([
+        const [playerData, npcData, swordData, hamburgerData, sceneData] = await Promise.all([
             loader.loadAsync('/models/PlayerWithSword.glb'),
-            loader.loadAsync('/models/gamelike.glb'),
-            loader.loadAsync('/models/gamelike.glb'),
             loader.loadAsync('/models/gamelike.glb'),
             loader.loadAsync('/models/swordR.glb'),
             loader.loadAsync('/models/hamburger.glb'),
             loader.loadAsync('/models/scene.glb'),
         ]);
-        return { playerData, npc1Data, npc2Data, npc3Data, swordData, hamburgerData, sceneData };
+        return { playerData, npcData,  swordData, hamburgerData, sceneData };
     }
 
-    setMeshTransformations() {
-        
-    }
     // 分拣glb载入的场景中的物体
     sortObjects(sceneMesh) {
         let meshes = []
@@ -584,10 +590,54 @@ export class Game {
             npc.updateBehavior(this.player, this);
             npc.updateAll(this.areas);
         });
+        // 周期性生成敌人
+        if (this.timeSinceLastWave >= this.waveInterval) {
+            const enemyCount = 3 + Math.floor(this.gameLevel * 0.5);
+            this.enemyManager.spawnWave(enemyCount, 50);
+            this.timeSinceLastWave = 0;
+
+            console.log(`生成了 ${enemyCount} 个新敌人`);
+        }
         this.checkAttack();
         this.updateCamera()
+        this.enemyManager.update()
 
         this.physics.update()
+        if (this.enemyManager) {
+            // 更新已经过的时间
+            this.timeSinceLastWave += this.enemyWaveClock.getDelta();
+
+            // 如果达到生成间隔，生成新一波敌人
+            if (this.timeSinceLastWave >= this.waveInterval) {
+                const enemyCount = 2 + Math.floor(this.gameLevel * 0.5); // 根据游戏级别计算敌人数量
+                const spawnRadius = 20 - Math.min(10, this.gameLevel); // 随着级别提高，敌人生成距离更近
+
+                // 生成敌人
+                this.enemyManager.spawnWave(enemyCount, spawnRadius);
+
+                // 重置计时器
+                this.timeSinceLastWave = 0;
+                console.log(`生成了 ${enemyCount} 个新敌人，当前活跃敌人: ${this.enemyManager.activeEnemies.length}`);
+
+                // 可选：提高游戏难度
+                if (this.gameLevel < 10 && Math.random() < 0.2) { // 20%概率提高难度
+                    this.gameLevel += 0.5;
+                    console.log(`游戏难度提升至 ${this.gameLevel}`);
+                }
+            }
+
+            // 更新敌人管理器
+            this.enemyManager.update();
+
+            // 可选：维持最小敌人数量
+            if (this.enemyManager.activeEnemies.length < this.minimumEnemyCount) {
+                const countToSpawn = this.minimumEnemyCount - this.enemyManager.activeEnemies.length;
+                if (countToSpawn > 0) {
+                    this.enemyManager.spawnWave(countToSpawn, 30);
+                    console.log(`补充了 ${countToSpawn} 个敌人`);
+                }
+            }
+        }
 
         this.renderer.render(this.scene, this.camera);
     }
@@ -609,6 +659,7 @@ export class Game {
         try {
             await this.initialize();
             this.animate();
+            
         } catch (error) {
             console.error('Game initialization failed:', error);
         }
