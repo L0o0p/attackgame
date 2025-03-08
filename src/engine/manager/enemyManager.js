@@ -33,11 +33,11 @@ export class EnemyManager {
 
     createEnemy() {
         // 使用SkeletonUtils.clone来正确克隆带骨骼的模型
-        const enemyModel = SkeletonUtils.clone(this.originalModel);
-
+        const enemyMesh = SkeletonUtils.clone(this.originalModel);
+        this.setColor(enemyMesh)
         const characterObj = new Enemy(
             'enemy',
-            enemyModel,// 模型
+            enemyMesh,// 模型
             this.animations,// 动画
             {
                 velocity: new THREE.Vector3(),
@@ -107,55 +107,8 @@ export class EnemyManager {
             // 更新动画
             enemy.characterObj.updateAll()
             enemy.characterObj.updateBehavior(this.player, this.game)
-            // enemy.mixer.update(deltaTime);
-
-            // // 计算与玩家的距离
-            // const distanceToPlayer = enemy.model.position.distanceTo(this.player.position);
-
-            // // 基于距离和状态的AI逻辑
-            // this.updateEnemyAI(enemy, distanceToPlayer);
-
-            // // 检查敌人是否应该被移除（死亡、太远等）
-            // if (enemy.health <= 0 || distanceToPlayer > 100) {
-            //     this.removeEnemy(enemy);
-            // }
         }
     }
-
-    // updateEnemyAI(enemy, distanceToPlayer) {
-    //     // 根据敌人与玩家的距离改变状态和动画
-    //     const prevState = enemy.state;
-
-    //     if (distanceToPlayer <= enemy.detectionRadius) {
-    //         // 玩家在侦测范围内
-    //         if (distanceToPlayer < 3) {
-    //             // 近距离 - 攻击状态
-    //             enemy.state = 'attack';
-    //         } else {
-    //             // 中距离 - 追击状态
-    //             enemy.state = 'chase';
-
-    //             // 移动逻辑 - 朝玩家方向移动
-    //             const direction = new THREE.Vector3()
-    //                 .subVectors(this.player.position, enemy.model.position)
-    //                 .normalize();
-
-    //             enemy.model.position.addScaledVector(direction, enemy.speed * deltaTime);
-
-    //             // 旋转敌人面向玩家
-    //             enemy.model.lookAt(this.player.position);
-    //         }
-    //     } else {
-    //         // 玩家不在侦测范围内 - 闲置或巡逻
-    //         enemy.state = 'idle';
-    //     }
-
-    //     // 如果状态有变化，切换动画
-    //     if (prevState !== enemy.state) {
-    //         enemy.mixer.stopAllAction();
-    //         enemy.actions[enemy.state]?.play();
-    //     }
-    // }
 
     // // 生成新敌人的周期函数
     spawnWave(count, radius) {
@@ -172,5 +125,15 @@ export class EnemyManager {
 
             this.spawnEnemy(position);
         }
+    }
+
+    setColor(character, color = 0xff0000) {
+        character.traverse((child) => {
+            if (child.isMesh) {
+                // 克隆材质以避免影响其他使用相同材质的网格
+                child.material = child.material.clone();
+                child.material.color.setHex(color);
+            }
+        });
     }
 }

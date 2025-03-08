@@ -92,7 +92,8 @@ export class Game {
         this.areaMeshes = [];
         this.areaBoxes = []
         this.enemyManager =null
-
+        this.deathY = -10; // 死亡高度阈值
+        this.spawnPoint = { x: 0, y: 5, z: 0 }; // 出生点位置
         // 绑定方法
         this.animate = this.animate.bind(this);
         this.checkAttack = this.checkAttack.bind(this);
@@ -489,7 +490,80 @@ export class Game {
         }
         this.ui.updateHealthBars();
     }
+    checkPlayerDeath() {
+        if (this.player && this.physics.characterBody) {
+            const position = this.physics.characterBody.translation();
+            if (position.y < -5) {
+                this.handlePlayerDeath();
+            }
+        }
+    }
 
+    handlePlayerDeath() {
+        // 重置玩家位置
+        this.resetPlayer();
+
+        // 可以添加死亡音效
+        if (this.sound) {
+            this.sound.playSound('death');
+        }
+
+        // 可以添加死亡特效
+        this.createDeathEffect();
+    }
+
+    resetPlayer() {
+        // 重置物理身体位置
+        if (this.physics.characterBody) {
+            this.physics.characterBody.setTranslation(
+                { x: this.spawnPoint.x, y: this.spawnPoint.y, z: this.spawnPoint.z }
+            );
+            // 重置速度
+            this.physics.characterBody.setLinvel({ x: 0, y: 0, z: 0 });
+            this.physics.characterBody.setAngvel({ x: 0, y: 0, z: 0 });
+        }
+
+        // 重置玩家模型位置
+        if (this.player && this.player.mesh) {
+            this.player.mesh.position.set(
+                this.spawnPoint.x,
+                this.spawnPoint.y,
+                this.spawnPoint.z
+            );
+        }
+
+        // 重置玩家状态
+        if (this.player) {
+            this.player.resetState();
+        }
+    }
+
+    createDeathEffect() {
+        // 可以添加粒子效果或其他视觉反馈
+        // 这里是一个简单的示例
+        const position = this.player.mesh.position.clone();
+
+        // 创建一个简单的爆炸效果
+        const particles = [];
+        for (let i = 0; i < 20; i++) {
+            const particle = new THREE.Mesh(
+                new THREE.SphereGeometry(0.1, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0xff0000 })
+            );
+            particle.position.copy(position);
+            this.scene.add(particle);
+
+            // 给粒子一个随机速度
+            const velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 2,
+                Math.random() * 2,
+                (Math.random() - 0.5) * 2
+            );
+
+            particles.push({ mesh: particle, velocity });
+        }
+    }
+    
     setupLights() {
         const light = new THREE.PointLight(0xffffff, 100, 100);
         light.position.set(0, 10, 10);
@@ -638,6 +712,7 @@ export class Game {
                 }
             }
         }
+        this.checkPlayerDeath();
 
         this.renderer.render(this.scene, this.camera);
     }

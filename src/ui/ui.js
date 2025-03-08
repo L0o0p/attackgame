@@ -116,26 +116,17 @@ export class UI {
                 fillColor: '#00ff00', // 也可以再选别的颜色
                 // 可能还可以加别的扩展
             },
-            {
-                name: 'npc1',
-                top: 80,
-                left: 20,
-                fillColor: '#ff0000',
-            },
-            {
-                name: 'npc2',
-                top: 140,
-                left: 20,
-                fillColor: '#ff0000',
-            },
-            {
-                name: 'npc3',
-                top: 200,
-                left: 20,
-                fillColor: '#ff0000',
-            },
-            // 如果以后还有别的 NPC，就继续添加
         ];
+            // 如果以后还有别的 NPC，就继续添加
+        // for (let i = 0; i < this.game.allNpc.length; i++) { 
+        //     const npcBarConfig = {
+        //         name: `npc${i+1}`,
+        //         top: 80+i*60,
+        //         left: 20,
+        //         fillColor: '#ff0000',
+        //     }
+        //     barConfigs.push(npcBarConfig)
+        // }
 
         // 用一个 Map 或对象来存放“角色名”-“血条DOM”的对应关系
         this.healthBars = new Map();
@@ -157,31 +148,14 @@ export class UI {
             playerBar.text.textContent = `Player: ${this.game.playerState.currentHealth}/${this.game.playerState.maxHealth}`;
         }
 
-        // 更新 npc1
-        const npc1Bar = this.healthBars.get('npc1');
-        if (npc1Bar) {
-            const { currentHealth, maxHealth } = this.game.npc1.attributes;
-            const npc1Percent = (currentHealth / maxHealth) * 100;
-            npc1Bar.fill.style.width = `${npc1Percent}%`;
-            npc1Bar.text.textContent = `npc1: ${currentHealth}/${maxHealth}`;
-        }
-
-        // 更新 npc2
-        const npc2Bar = this.healthBars.get('npc2');
-        if (npc2Bar) {
-            const { currentHealth, maxHealth } = this.game.npc2.attributes;
-            const npc2Percent = (currentHealth / maxHealth) * 100;
-            npc2Bar.fill.style.width = `${npc2Percent}%`;
-            npc2Bar.text.textContent = `npc2: ${currentHealth}/${maxHealth}`;
-        }
-
-        // 更新 npc3
-        const npc3Bar = this.healthBars.get('npc3');
-        if (npc3Bar) {
-            const { currentHealth, maxHealth } = this.game.npc3.attributes;
-            const npc3Percent = (currentHealth / maxHealth) * 100;
-            npc3Bar.fill.style.width = `${npc3Percent}%`;
-            npc3Bar.text.textContent = `npc3: ${currentHealth}/${maxHealth}`;
-        }
+        // // 更新 npc1
+        // this.game.allNpc.forEach(npc => {
+        //     if (!npc) return
+        //     const npc1Bar = this.healthBars.get('npc1');
+        //     const { currentHealth, maxHealth } = npc.attributes;
+        //     const npcPercent = (currentHealth / maxHealth) * 100;
+        //     npc1Bar.fill.style.width = `${npc1Percent}%`;
+        //     npc1Bar.text.textContent = `npc1: ${currentHealth}/${maxHealth}`;
+        // })
     }
 }
