@@ -13,6 +13,8 @@ overwrite(Mesh, AnimationMixer, AnimationClip, LoopOnce);
 import {Area} from './manager/area'
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js'
 import { EnemyManager } from './manager/enemyManager';
+import { SnowFieldSystem } from './manager/snow-track'
+import { TouchButton } from './controls/touch-button';
 
 export const CharacterStates = {
     IDLE: 'idle',
@@ -46,7 +48,7 @@ export class Game {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(this.renderer.domElement);
         this.cameraTarget = null;// playerMesh
-        this.cameraOffset = new THREE.Vector3(0, 5, 10);
+        this.cameraOffset = new THREE.Vector3(0, 1.8, 1);
         this.smoothness = 0.1; // 相机移动平滑度
 
         // 可收集物品数组
@@ -94,6 +96,24 @@ export class Game {
         this.enemyManager =null
         this.deathY = -10; // 死亡高度阈值
         this.spawnPoint = { x: 0, y: 5, z: 0 }; // 出生点位置
+
+        // 敌人生成
+        this.radius = 5
+
+        this.attackButton = new TouchButton({
+            size: 80,
+            position: { right: '40px', bottom: '40px' },
+            icon: '⚔️', // 可以改用其他图标
+            onAttack: () => {
+                // 在这里触发你的攻击逻辑
+                // 检查角色状态
+                if (this.playerState.characterState === CharacterStates.DEATH) return;
+
+                // 触发攻击状态转换
+                this.player.transitionTo(CharacterStates.ATTACK);
+            }
+        });
+
         // 绑定方法
         this.animate = this.animate.bind(this);
         this.checkAttack = this.checkAttack.bind(this);
@@ -247,15 +267,23 @@ export class Game {
         this.scene.add(this.player.mesh);
 
         this.cameraTarget = this.player.mesh;// playerMesh
-        this.camera.lookAt(this.cameraTarget.position);
+        
+        this.camera.lookAt(this.cameraTarget.position.x, this.cameraTarget.position.y+2, this.cameraTarget.position.z);
 
-        this.enemyManager.spawnWave(5, 5); // 生成5个敌人，半径30米
+        this.enemyManager.spawnWave(5, this.radius); // 生成5个敌人，半径30米
 
         this.timeSinceLastWave = 0;     // 自上次生成敌人以来经过的时间
-        this.waveInterval = 30;         // 生成敌人的时间间隔（秒）
+        this.waveInterval = 10/2;         // 生成敌人的时间间隔（秒）
         this.gameLevel = 1;             // 游戏难度级别
         this.minimumEnemyCount = 5;     // 最小敌人数量
         this.enemyWaveClock = new THREE.Clock(); // 专门用于敌人生成的时钟
+
+        // const snowSystem = new SnowFieldSystem({
+        //     scene: this.scene,
+        //     camera: this.camera,
+        //     renderer: this.renderer,
+        //     debugObject: this.player.mesh
+        // });
         // 添加事件监听
         this.addEventListeners();
     }
@@ -278,7 +306,7 @@ export class Game {
             loader.loadAsync('/models/gamelike.glb'),
             loader.loadAsync('/models/swordR.glb'),
             loader.loadAsync('/models/hamburger.glb'),
-            loader.loadAsync('/models/scene.glb'),
+            loader.loadAsync('/models/lowPolyScene.glb'),
         ]);
         return { playerData, npcData,  swordData, hamburgerData, sceneData };
     }
@@ -667,7 +695,7 @@ export class Game {
         // 周期性生成敌人
         if (this.timeSinceLastWave >= this.waveInterval) {
             const enemyCount = 3 + Math.floor(this.gameLevel * 0.5);
-            this.enemyManager.spawnWave(enemyCount, 50);
+            this.enemyManager.spawnWave(enemyCount, this.radius);
             this.timeSinceLastWave = 0;
 
             console.log(`生成了 ${enemyCount} 个新敌人`);
@@ -687,7 +715,7 @@ export class Game {
                 const spawnRadius = 20 - Math.min(10, this.gameLevel); // 随着级别提高，敌人生成距离更近
 
                 // 生成敌人
-                this.enemyManager.spawnWave(enemyCount, spawnRadius);
+                this.enemyManager.spawnWave(enemyCount, this.radius);
 
                 // 重置计时器
                 this.timeSinceLastWave = 0;
@@ -707,7 +735,7 @@ export class Game {
             if (this.enemyManager.activeEnemies.length < this.minimumEnemyCount) {
                 const countToSpawn = this.minimumEnemyCount - this.enemyManager.activeEnemies.length;
                 if (countToSpawn > 0) {
-                    this.enemyManager.spawnWave(countToSpawn, 30);
+                    this.enemyManager.spawnWave(countToSpawn, this.radius);
                     console.log(`补充了 ${countToSpawn} 个敌人`);
                 }
             }

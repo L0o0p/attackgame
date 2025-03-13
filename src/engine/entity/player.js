@@ -1,6 +1,7 @@
 // 集成角色模型网格、动画、状态管理
 import * as THREE from 'three';
 import { Character } from './character';
+import { JoystickController } from '../controls/touch-controls';
 
 export class Player extends Character {
     constructor(
@@ -12,8 +13,8 @@ export class Player extends Character {
         keys,
         swordMesh
         // 物理
-        ,physics
-        ,sound,
+        , physics
+        , sound,
     ) {
         super(
             characterName,
@@ -28,10 +29,20 @@ export class Player extends Character {
         this.sword = swordMesh
         this.physics = physics
         this.createBody()
+
+        // 添加遥感控制状态
+        this.joystickInput = {
+            x: 0,
+            y: 0,
+            active: false
+        };
+
+        // 初始化遥感
+        this.initJoystick();
     }
     createBody() {
         this.physics.createPlayer(this.mesh)
-}
+    }
 
     equip(newEquipment) {
         this.equipment.push(newEquipment)
@@ -44,24 +55,44 @@ export class Player extends Character {
         this.sword.visible = true;
         this.hasSword = true;
     }
-
+    initJoystick() {
+        const joystick = new JoystickController({
+            size: 120,
+            position: { left: '40px', bottom: '40px' },
+            onChange: (data) => {
+                // 更新遥感输入状态
+                this.joystickInput.x = data.x;
+                this.joystickInput.y = data.y;
+                this.joystickInput.active = data.active;
+            }
+        });
+    }
     // 角色移动
     moveCharacter() {
-        const keys = this.keys
-        const speed = this.attributes.speed
-        const rotationSpeed = this.attributes.rotationSpeed
-
+        const keys = this.keys;
+        const speed = this.attributes.speed;
+        const rotationSpeed = this.attributes.rotationSpeed;
         const linvel = this.physics.characterBody.linvel();
+
         let moveX = 0;
         let moveZ = 0;
-        
-        if (keys.w) moveZ -= speed;
-        if (keys.s) moveZ += speed;
-        if (keys.a) moveX -= speed;
-        if (keys.d) moveX += speed;
+
+        // 合并键盘和遥感输入
+        if (this.joystickInput.active) {
+            // 使用遥感输入
+            moveX = this.joystickInput.x * speed;
+            moveZ = this.joystickInput.y * speed;
+        } else {
+            // 使用键盘输入
+            if (keys.w) moveZ -= speed;
+            if (keys.s) moveZ += speed;
+            if (keys.a) moveX -= speed;
+            if (keys.d) moveX += speed;
+        }
+
+        // 如果有移动输入
         if (moveX !== 0 || moveZ !== 0) {
             // 计算角色的旋转角度
-            // 标准化移动向量
             const moveVector = new THREE.Vector2(moveX, moveZ).normalize();
 
             // 创建目标旋转
@@ -74,6 +105,7 @@ export class Player extends Character {
             // 平滑插值到目标旋转
             this.mesh.quaternion.slerp(targetRotation, rotationSpeed);
         }
+
         // 设置速度
         this.physics.characterBody.setLinvel({
             x: moveX,
