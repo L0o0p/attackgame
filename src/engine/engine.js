@@ -6,7 +6,6 @@ import { Player } from './entity/player';
 import { Equipment } from './entity/equipment';
 import { PhysicsSystem } from './manager/physicSystem';
 import { Sound } from './manager/sound';
-// src/main.js 或其他入口文件
 import { Mesh, AnimationMixer, AnimationClip, LoopOnce } from 'three';
 import overwrite from './overwrite';
 overwrite(Mesh, AnimationMixer, AnimationClip, LoopOnce);
@@ -15,6 +14,8 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js'
 import { EnemyManager } from './manager/enemyManager';
 import { SnowFieldSystem } from './manager/snow-track'
 import { TouchButton } from './controls/touch-button';
+import { LoadingScreen } from "./manager/ resource";
+import { ResourceLoader } from "./manager/ resource";
 
 export const CharacterStates = {
     IDLE: 'idle',
@@ -40,10 +41,17 @@ export const stepSounds = {
 
 export class Game {
     constructor() {
+        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        // 创建加载界面
+        this.loadingScreen = new LoadingScreen();
+        // 创建资源加载器
+        this.resourceLoader = new ResourceLoader(this.camera,this.loadingScreen);
+        // 初始化游戏
+        this.init();
+
         // 场景和摄像机
         // 初始化场景
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.renderer = new THREE.WebGLRenderer();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(this.renderer.domElement);
@@ -90,7 +98,7 @@ export class Game {
         this.ui = new UI(this);
 
         // 音效管理
-        this.sound = new Sound(this.camera);
+        this.sound = this.resourceLoader.sound
         this.areaMeshes = [];
         this.areaBoxes = []
         this.enemyManager =null
@@ -122,12 +130,39 @@ export class Game {
         this.boundKeyUp = this.handleKeyUp.bind(this);
     }
 
-    async initialize() {
-        // 加载音频
-        await this.initSound()
-        // 加载模型
-        const { playerData, npcData, swordData, hamburgerData, sceneData } = await this.loadModels()
+    async init() {
+        try {
+            // 开始加载所有资源
+            await this.resourceLoader.loadResources();
 
+            // 所有资源加载完成后，初始化游戏
+            await this.startGame();
+            this.animate();
+        } catch (error) {
+            console.error('Failed to initialize game:', error);
+            // 处理错误情况
+        }
+    }
+
+    async startGame() {
+        // 隐藏加载界面
+        this.loadingScreen.hide();
+
+        // 获取并使用加载的资源
+        const playerModel = this.resourceLoader.getResource('player');
+        const sceneModel = this.resourceLoader.getResource('scene');
+
+        // 初始化游戏场景
+        await this.initializeGameScene(playerModel, sceneModel);
+    }
+
+    async initializeGameScene() {
+        // 初始化模型
+        const playerData = this.resourceLoader.getResource('player')
+        const npcData = this.resourceLoader.getResource('npc')
+        const swordData = this.resourceLoader.getResource('sword')
+        const hamburgerData = this.resourceLoader.getResource('hamburger')
+        const sceneData = this.resourceLoader.getResource('scene')
         
         const swordObject = playerData.scene.getObjectByName("sword");
         swordObject.position.add({ x: 0.2, y: 0.09, z: -0.2 });
@@ -288,28 +323,30 @@ export class Game {
         this.addEventListeners();
     }
 
-    async initSound() {
-        await this.sound.loadSound(stepSounds.ATTACK);
-        await this.sound.loadSound(stepSounds.ATTACKWITHSWORD);
-        await this.sound.loadSound(stepSounds.HIT);
-        await this.sound.loadSound(stepSounds.WALK.soil);
-        await this.sound.loadSound(stepSounds.WALK.water);
-        await this.sound.loadSound(stepSounds.WALK.wood);
-        await this.sound.loadSound(stepSounds.GETSWORD);
-        await this.sound.loadSound(stepSounds.HEALUP); 
-    }
+    // async loadResource() {
+    //     const loader = new GLTFLoader();
+    //     const [playerData, npcData, swordData, hamburgerData, sceneData] = await Promise.all([
+    //         loader.loadAsync('/models/PlayerWithSword.glb'),
+    //         loader.loadAsync('/models/gamelike.glb'),
+    //         loader.loadAsync('/models/swordR.glb'),
+    //         loader.loadAsync('/models/hamburger.glb'),
+    //         loader.loadAsync('/models/lowPolyScene.glb'),
+    //     ]);
+    //     this.resources.set('player', playerData)
+    //     this.resources.set('npc', npcData)
+    //     this.resources.set('sword', swordData)
+    //     this.resources.set('hamburger', hamburgerData)
+    //     this.resources.set('scene', sceneData)
 
-    async loadModels() {
-        const loader = new GLTFLoader();
-        const [playerData, npcData, swordData, hamburgerData, sceneData] = await Promise.all([
-            loader.loadAsync('/models/PlayerWithSword.glb'),
-            loader.loadAsync('/models/gamelike.glb'),
-            loader.loadAsync('/models/swordR.glb'),
-            loader.loadAsync('/models/hamburger.glb'),
-            loader.loadAsync('/models/lowPolyScene.glb'),
-        ]);
-        return { playerData, npcData,  swordData, hamburgerData, sceneData };
-    }
+    //     await this.sound.loadSound(stepSounds.ATTACK);
+    //     await this.sound.loadSound(stepSounds.ATTACKWITHSWORD);
+    //     await this.sound.loadSound(stepSounds.HIT);
+    //     await this.sound.loadSound(stepSounds.WALK.soil);
+    //     await this.sound.loadSound(stepSounds.WALK.water);
+    //     await this.sound.loadSound(stepSounds.WALK.wood);
+    //     await this.sound.loadSound(stepSounds.GETSWORD);
+    //     await this.sound.loadSound(stepSounds.HEALUP); 
+    // }
 
     // 分拣glb载入的场景中的物体
     sortObjects(sceneMesh) {
@@ -760,7 +797,7 @@ export class Game {
 
     async run(params) {
         try {
-            await this.initialize();
+            await this.initializeGameScene();
             this.animate();
             
         } catch (error) {

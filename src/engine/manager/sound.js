@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 export class Sound {
-    constructor(camera) {
+    constructor(camera, loadingManager = null) {
         this.listener = new THREE.AudioListener();
         camera.add(this.listener);
-        this.audioLoader = new THREE.AudioLoader();
+        this.audioLoader = new THREE.AudioLoader(loadingManager); // 这个不会用到，但保持兼容
         this.sounds = new Map();
         this.tracks = new Map()
 
@@ -13,17 +13,62 @@ export class Sound {
     async loadSound(key) {
         const srcs = getSrc(key)
         const track = []
-        for (const src of srcs) {
-            const audio = new Audio(src)
-            track.push(audio)
+        
+        if (this.loadingManager) {
+            srcs.forEach(() => {
+                this.loadingManager.itemStart(key);
+            });
         }
-        this.tracks.set(key, track)
+        try {
+            // 加载所有音频文件
+            const loadPromises = srcs.map(src =>
+                new Promise((resolve, reject) => {
+                    const audio = new Audio();
+
+                    audio.addEventListener('canplaythrough', () => {
+                        track.push(audio);
+                        // 通知 loadingManager 一个项目加载完成
+                        if (this.loadingManager) {
+                            this.loadingManager.itemEnd(src);
+                        }
+                        resolve(audio);
+                    }, { once: true });
+
+                    audio.addEventListener('error', (error) => {
+                        if (this.loadingManager) {
+                            this.loadingManager.itemError(src);
+                        }
+                        reject(error);
+                    }, { once: true });
+
+                    audio.src = src;
+                    audio.load(); // 开始加载
+                })
+            );
+
+            await Promise.all(loadPromises);
+            this.tracks.set(key, track);
+            console.log(this.tracks);
+            
+
+        } catch (error) {
+            console.error(`Error loading sound ${key}:`, error);
+            // 确保发生错误时也通知 loadingManager
+            if (this.loadingManager) {
+                srcs.forEach(src => {
+                    this.loadingManager.itemError(src);
+                });
+            }
+            throw error;
+        }
     }
 
     // 播放音频
     playSound(key) {
         console.log('key', key);
         const track = this.tracks.get(key)        
+        console.log(this.tracks);
+        
         const index = randomInt(track.length)
         track[index].currentTime = 0
         console.log(track[index]);
