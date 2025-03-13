@@ -117,16 +117,6 @@ export class UI {
                 // 可能还可以加别的扩展
             },
         ];
-            // 如果以后还有别的 NPC，就继续添加
-        // for (let i = 0; i < this.game.allNpc.length; i++) { 
-        //     const npcBarConfig = {
-        //         name: `npc${i+1}`,
-        //         top: 80+i*60,
-        //         left: 20,
-        //         fillColor: '#ff0000',
-        //     }
-        //     barConfigs.push(npcBarConfig)
-        // }
 
         // 用一个 Map 或对象来存放“角色名”-“血条DOM”的对应关系
         this.healthBars = new Map();
@@ -148,14 +138,5 @@ export class UI {
             playerBar.text.textContent = `Player: ${this.game.playerState.currentHealth}/${this.game.playerState.maxHealth}`;
         }
 
-        // // 更新 npc1
-        // this.game.allNpc.forEach(npc => {
-        //     if (!npc) return
-        //     const npc1Bar = this.healthBars.get('npc1');
-        //     const { currentHealth, maxHealth } = npc.attributes;
-        //     const npcPercent = (currentHealth / maxHealth) * 100;
-        //     npc1Bar.fill.style.width = `${npc1Percent}%`;
-        //     npc1Bar.text.textContent = `npc1: ${currentHealth}/${maxHealth}`;
-        // })
     }
 }

@@ -170,9 +170,6 @@ export class Game {
 
         // 设置玩家和目标
         this.playerMesh = playerData.scene;
-        const npc1Mesh = SkeletonUtils.clone(npcData.scene); 
-        const npc2Mesh = SkeletonUtils.clone(npcData.scene); 
-        const npc3Mesh = SkeletonUtils.clone(npcData.scene); 
         const sceneMesh = sceneData.scene
         .rotateY(Math.PI / 2);
         const healMesh = hamburgerData.scene;
@@ -184,68 +181,6 @@ export class Game {
         const xx = 0.05
         healMesh.scale.set(xx, xx, xx);
         healMesh.position.y = 40;
-        npc1Mesh.position.x = 4;
-        npc2Mesh.position.set(4, 0, 4);
-        npc3Mesh.position.x = -4;
-        this.setColor(npc1Mesh)
-        this.setColor(npc2Mesh)
-        this.setColor(npc3Mesh)
-        this.scene.add(npc1Mesh);
-        this.scene.add(npc2Mesh);
-        this.scene.add(npc3Mesh);
-
-        this.npc1 = new Enemy(
-            'npc1',
-            npc1Mesh,// 模型
-            npcData.animations,// 动画
-            {
-                velocity: new THREE.Vector3(),
-                speed: 0.1 / 2,
-                characterState: CharacterStates.IDLE,
-                maxHealth: 100,
-                currentHealth: 100,
-                damage: 5,
-                isHit: false,
-                hitCooldown: 0 / 2,
-            } // 参数
-            , this.sound
-        )
-
-        this.npc2 = new Enemy(
-            'npc2',
-            npc2Mesh,// 模型
-            npcData.animations,// 动画
-            {
-                velocity: new THREE.Vector3(),
-                speed: 0.1 / 2,
-                characterState: CharacterStates.IDLE,
-                maxHealth: 100,
-                currentHealth: 100,
-                damage: 5,
-                isHit: false,
-                hitCooldown: 0,
-            } // 参数
-            , this.sound
-        )
-
-        this.npc3 = new Enemy(
-            'npc3',
-            npc3Mesh,// 模型
-            npcData.animations,// 动画
-            {
-                velocity: new THREE.Vector3(),
-                speed: 0.1 / 2,
-                characterState: CharacterStates.IDLE,
-                maxHealth: 100,
-                currentHealth: 100,
-                damage: 5,
-                isHit: false,
-                hitCooldown: 0,
-            } // 参数
-            , this.sound
-        )
-
-        this.allNpc.push(this.npc1, this.npc2, this.npc3)
 
         // 设置环境部份
         this.setupEnv()
