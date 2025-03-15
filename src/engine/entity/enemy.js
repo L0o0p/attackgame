@@ -19,7 +19,7 @@ export class Enemy extends Character {
 
     updateBehavior(player, game) {
         // 如果已经死亡，不执行任何行为
-        if (this.attributes.characterState === CharacterStates.DEATH) return;
+        if (this.stateMachine.currentState === CharacterStates.DEATH) return;
 
         // 如果正在被击中，不执行任何行为
         if (this.attributes.isHit) return;
@@ -29,7 +29,7 @@ export class Enemy extends Character {
         // 在攻击范围内且冷却结束时攻击
         if (distanceToPlayer <= this.attackRange && this.attackCooldown <= 0) {
             // 如果已经死亡，不执行任何行为
-            if (player.attributes.characterState === CharacterStates.DEATH) return;
+            if (player.stateMachine.currentState === CharacterStates.DEATH) return;
             this.attack(player, game);
         }
         // 在检测范围内但超出攻击范围时移动向玩家

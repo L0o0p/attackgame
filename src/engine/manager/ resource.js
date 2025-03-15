@@ -20,7 +20,6 @@ export class ResourceLoader {
             if (this.loadingScreen) {
                 this.loadingScreen.updateProgress(progress);
             }
-            console.log(`Loading: ${progress.toFixed(2)}% completed`);
         };
 
         this.loadingManager.onLoad = () => {

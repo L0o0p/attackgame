@@ -16,7 +16,7 @@ import { LoadingScreen } from "./manager/ resource";
 import { ResourceLoader } from "./manager/ resource";
 import { CharacterStates, stepSounds } from './game-config'
 import { InputSystem } from './manager/InputSystem'
-import { CombatEventSystem } from './manager/eventManager';
+import { EventManager } from './manager/eventManager';
 
 
 export class Game {
@@ -102,6 +102,8 @@ export class Game {
                 this.player.stateMachine.transitionTo(CharacterStates.ATTACK);
             }
         });
+
+        this.eventManager = new EventManager(this.input)
 
         // 绑定方法
         this.animate = this.animate.bind(this);
@@ -427,9 +429,21 @@ export class Game {
         this.ui.updateHealthBars();
     }
 
-    applyDamage(damagedCharacter, damageValue) {// 应用伤害
-        damagedCharacter.attributes.currentHealth = Math.max(0, damagedCharacter.attributes.currentHealth - damageValue);
-        if (damagedCharacter.attributes.currentHealth <= 0) damagedCharacter.stateMachine.transitionTo('die')
+    applyDamage(damagedCharacter, damageValue) {
+        const previousHealth = damagedCharacter.attributes.currentHealth;
+        damagedCharacter.attributes.currentHealth = Math.max(0,
+            damagedCharacter.attributes.currentHealth - damageValue);
+
+        console.log(`Health reduced from ${previousHealth} to ${damagedCharacter.attributes.currentHealth}`);
+
+        if (damagedCharacter.attributes.currentHealth <= 0) {
+            console.log('Character should die. Current state:', damagedCharacter.stateMachine.currentState);
+            damagedCharacter.stateMachine.transitionTo(CharacterStates.DEATH);
+            console.log('After death transition:', damagedCharacter.stateMachine.currentState);
+
+            // 确保角色进入死亡状态后不能再行动
+            damagedCharacter.attributes.isDead = true;
+        }
         this.ui.updateHealthBars();
     }
 
@@ -490,9 +504,9 @@ export class Game {
         }
 
         // 重置玩家状态
-        if (this.player) {
-            this.player.resetState();
-        }
+        // if (this.player) {
+        //     this.player.resetState();
+        // }
     }
 
     createDeathEffect() {
@@ -540,7 +554,7 @@ export class Game {
     }
 
     checkAttack() {
-        if (this.player.attributes.characterState == 'attack') {
+        if (this.player.stateMachine.currentState == 'attack') {
             let actualDamage = this.player.attributes.damage
             if (this.player.equipment.length > 0) {
                 this.player.equipment.forEach(n => {
@@ -552,9 +566,8 @@ export class Game {
                 const distance = this.player.mesh.position.distanceTo(npc.mesh.position);
 
                 if (distance < 1.3 && !npc.attributes.isHit) {
-                    // if (distance < 1.3 && npc.attributes.characterState!=='hit') {
+
                     npc.attributes.isHit = true;
-                    // npc.attributes.characterState ='hit'
                     npc.attributes.hitCooldown = 90;
 
                     const knockbackDirection = npc.mesh.position.clone()
@@ -564,6 +577,7 @@ export class Game {
                     // 使用正确的模型引用播放动画
                     // npc.switchAnimation('hit');
                     npc.stateMachine.transitionTo('hit');
+                    console.log(`${npc} is under attack`);
 
                     this.applyDamage(npc, actualDamage)
                 }
@@ -572,13 +586,13 @@ export class Game {
         }
 
         this.allNpc.forEach(npc => {
-            if (npc.attributes.characterState == 'attack') {
+            if (npc.stateMachine.currentState == 'attack') {
                 const distance = npc.mesh.position.distanceTo(this.player.mesh.position);
 
                 if (distance < 1.3 && !this.player.attributes.isHit) {
-                    // if (distance < 1.3 && !npc.attributes.characterState==='hit') {
+                    // if (distance < 1.3 && !npc.stateMachine.currentState==='hit') {
                     this.player.attributes.isHit = true;
-                    // npc.attributes.characterState ='hit'
+                    // npc.stateMachine.currentState ='hit'
                     this.player.attributes.hitCooldown = 90;
 
                     // const knockbackDirection = this.player.mesh.position.clone()
@@ -596,8 +610,8 @@ export class Game {
     animate() {
         requestAnimationFrame(this.animate);
         const movementVector = this.input.calculateMovementVector();
-        const state = this.input.getState()
-        this.player.updateAll(this.areaBoxes, movementVector,state)
+        const state = this.eventManager.getState()
+        this.player.updateAll(this.areaBoxes, movementVector, state)
         this.checkCollisions()
         this.allNpc.forEach(npc => {
             npc.updateBehavior(this.player, this);

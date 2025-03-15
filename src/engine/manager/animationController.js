@@ -16,7 +16,7 @@ export class AnimationController {
         animations.forEach(clip => {
             const name = clip.name.replace('_Armature', '').toLowerCase();
             const action = this.mixer.clipAction(clip);
-            if (name === 'die') {
+            if (name === CharacterStates.DEATH) {
                 action.clampWhenFinished = true;
                 action.loop = THREE.LoopOnce;
             }

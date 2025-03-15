@@ -66,7 +66,6 @@ export class Character {
     syncAnimSound() {
         this.on(CharacterStates.ATTACK, 'half', () => {
             if (this.sound) {
-                console.log(this.sound);
                 this.sound.playSound(stepSounds.ATTACK);
             } else {
                 console.warn('sound 未初始化');
@@ -122,7 +121,7 @@ export class Character {
 
     updateCharacter() {
         // 【目标如果已死亡，就不要再让它切换动画】
-        if (this.attributes.characterState === CharacterStates.DEATH) {
+        if (this.stateMachine.currentState === CharacterStates.DEATH) {
             return;
         }
 

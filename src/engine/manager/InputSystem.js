@@ -1,6 +1,5 @@
 import { Vector3 } from "three";
 import { JoystickController } from '../../ui/controls/touch-controls'
-import { CharacterStates } from "../game-config";
 export class InputSystem {
     keys = {
         w: false,
@@ -27,19 +26,6 @@ export class InputSystem {
         }
         // 归一化向量，使对角线移动速度一致
         return vector.normalize();
-    }
-
-    getState() {
-        const movementVector = this.calculateMovementVector()
-        if (movementVector.x !== 0 | movementVector.z !== 0) {
-            return CharacterStates.WALK
-        }
-        else if(this.keys.j){
-            return CharacterStates.ATTACK
-        }
-        else {
-            return CharacterStates.IDLE
-        }
     }
 
     handleKeyDown(event) {

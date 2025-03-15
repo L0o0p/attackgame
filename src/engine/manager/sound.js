@@ -48,8 +48,6 @@ export class Sound {
 
             await Promise.all(loadPromises);
             this.tracks.set(key, track);
-            console.log(this.tracks);
-            
 
         } catch (error) {
             console.error(`Error loading sound ${key}:`, error);

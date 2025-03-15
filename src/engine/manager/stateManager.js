@@ -2,123 +2,176 @@ import * as THREE from 'three'
 import { CharacterStates } from '../game-config'
 
 export class StateManager {
-    constructor(animator,state,equipment) {
-        this.animator = animator
-        this.currentState = state
-        this.equipment = equipment
-        this.isPlayingLockedAnimation = false; // 添加动画锁定标记
+    constructor(animator, state, equipment) {
+        this.animator = animator;
+        this.currentState = CharacterStates.IDLE;
+        this.equipment = equipment;
+        this.isPlayingLockedAnimation = false;
+        this.isDead = false; // 添加死亡标记
+        this.currentAction = null;
     }
 
-    // 状态转换的验证逻辑
-    canTransitionTo(newState) {
-        if (this.currentState = CharacterStates.DEATH) return false;
-        // 其他转换条件...
-        return true;
-    }
-
-    // 状态转换
     transitionTo(newState) {
-        // 如果已是相同状态，无需处理
-        if (this.currentState === newState) {
+        console.log(`Attempting transition from ${this.currentState} to ${newState}`);
+
+        // 如果已经死亡，只允许死亡状态
+        if (this.isDead && newState !== CharacterStates.DEATH) {
+            console.log('Already dead, preventing transition to', newState);
             return;
         }
-        // 可选：判断是否允许从 this.currentState → newState
-        if (this.currentState === CharacterStates.DEATH) {
-            // 死亡不可过渡到其他状态
+
+        // 如果已经是相同状态，无需处理
+        if (this.currentState === newState && newState !== CharacterStates.ATTACK) {
             return;
         }
-        // 如果正在播放不可打断的动画，阻止转换
-        if (this.isPlayingLockedAnimation) {
+
+        // 死亡状态应该能够打断其他所有状态
+        if (newState === CharacterStates.DEATH) {
+            console.log('Transitioning to death state');
+            this.isDead = true;
+            this.isPlayingLockedAnimation = false; // 允许死亡动画播放
+            this.currentState = CharacterStates.DEATH;
+
+            const dieAction = this.animator.actions.get(CharacterStates.DEATH);
+            if (dieAction) {
+                // 停止当前所有动画
+                this.animator.actions.forEach(action => {
+                    action.stop();
+                });
+
+                dieAction.setLoop(THREE.LoopOnce);
+                dieAction.clampWhenFinished = true;
+                this.animator.switchAnimation(dieAction);
+                this.currentAction = dieAction;
+
+                const mixer = dieAction.getMixer();
+                const onFinished = (e) => {
+                    if (e.action === dieAction) {
+                        console.log('Death animation completed');
+                        this.isPlayingLockedAnimation = true; // 死亡后锁定
+                        mixer.removeEventListener('finished', onFinished);
+                    }
+                };
+                mixer.addEventListener('finished', onFinished);
+            }
+            return;
+        }
+
+        // 如果正在播放锁定动画且不是死亡状态，阻止转换
+        if (this.isPlayingLockedAnimation && !this.isDead) {
+            console.log('Animation locked, preventing transition to', newState);
             return;
         }
 
         // 状态切换
         this.currentState = newState;
 
-        //  根据状态选择对应动画
-        if (newState === CharacterStates.IDLE) {
-            const idleAction = this.animator.actions.get(CharacterStates.IDLE);
-            if (idleAction) {
-                idleAction.setLoop(THREE.LoopRepeat);
-                idleAction.clampWhenFinished = true;
-                this.animator.switchAnimation(idleAction)
-            }
+        // 处理各种状态的动画
+        switch (newState) {
+            case CharacterStates.IDLE:
+                this.handleIdleState();
+                break;
+            case CharacterStates.ATTACK:
+                this.handleAttackState();
+                break;
+            case CharacterStates.WALK:
+                this.handleWalkState();
+                break;
+            case CharacterStates.HIT:
+                this.handleHitState();
+                break;
         }
+    }
 
-        // 如果是攻击或受击，需要限制播放次数/回调
-        if (newState === CharacterStates.ATTACK) {
-            const actionName = (this.equipment.some(n => n.equipmentName === 'SWORD')) ?
-                CharacterStates.ATTACKWITHSWORD : CharacterStates.ATTACK
-            const attackAction = this.animator.actions.get(actionName);
+    handleIdleState() {
+        const idleAction = this.animator.actions.get(CharacterStates.IDLE);
+        if (idleAction) {
+            if (this.currentAction && this.currentAction !== idleAction) {
+                this.currentAction.fadeOut(0.2);
+            }
+            idleAction.setLoop(THREE.LoopRepeat);
+            idleAction.clampWhenFinished = true;
+            this.animator.switchAnimation(idleAction);
+            this.currentAction = idleAction;
+        }
+    }
 
+    handleAttackState() {
+        const actionName = (this.equipment.some(n => n.equipmentName === 'SWORD')) ?
+            CharacterStates.ATTACKWITHSWORD : CharacterStates.ATTACK;
+        const attackAction = this.animator.actions.get(actionName);
+
+        if (attackAction) {
             if (this.currentAction && this.currentAction !== attackAction) {
                 this.currentAction.fadeOut(0.2);
             }
-            if (attackAction) {
-                this.isPlayingLockedAnimation = true; // 设置锁定标记
-                attackAction.setLoop(THREE.LoopOnce);
-                attackAction.clampWhenFinished = true;
-                this.animator.switchAnimation(attackAction)
-                const mixer = attackAction.getMixer()
-                const onFinished = (e) => {
-                    if (e.action === attackAction) {
-                        this.isPlayingLockedAnimation = false; // 设置锁定标记
-                        this.transitionTo(CharacterStates.IDLE);
-                        mixer.removeEventListener('finished', onFinished);
-                    }
-                };
-                mixer.addEventListener('finished', onFinished);
-            }
-        }
+            this.isPlayingLockedAnimation = true;
+            attackAction.setLoop(THREE.LoopOnce);
+            attackAction.clampWhenFinished = true;
+            this.animator.switchAnimation(attackAction);
+            this.currentAction = attackAction;
 
-        if (newState === CharacterStates.WALK) {
-            const walkAction = this.animator.actions.get(CharacterStates.WALK);
+            const mixer = attackAction.getMixer();
+            const onFinished = (e) => {
+                if (e.action === attackAction) {
+                    this.isPlayingLockedAnimation = false;
+                    if (!this.isDead) {
+                        this.transitionTo(CharacterStates.IDLE);
+                    }
+                    mixer.removeEventListener('finished', onFinished);
+                }
+            };
+            mixer.addEventListener('finished', onFinished);
+        }
+    }
+
+    handleWalkState() {
+        const walkAction = this.animator.actions.get(CharacterStates.WALK);
+        if (walkAction) {
             if (this.currentAction && this.currentAction !== walkAction) {
                 this.currentAction.fadeOut(0.2);
             }
-            if (walkAction) {
-                walkAction.setLoop(THREE.LoopRepeat);
-                walkAction.clampWhenFinished = false;
-                this.animator.switchAnimation(walkAction)
-
-            }
+            walkAction.setLoop(THREE.LoopRepeat);
+            walkAction.clampWhenFinished = false;
+            this.animator.switchAnimation(walkAction);
+            this.currentAction = walkAction;
         }
+    }
 
-        if (newState === CharacterStates.HIT) {
-            const hitAction = this.animator.actions.get(CharacterStates.HIT);
+    handleHitState() {
+        const hitAction = this.animator.actions.get(CharacterStates.HIT);
+        if (hitAction) {
             if (this.currentAction && this.currentAction !== hitAction) {
                 this.currentAction.fadeOut(0.2);
             }
-            if (hitAction) {
-                this.isPlayingLockedAnimation = true; // 设置锁定标记
-                hitAction.setLoop(THREE.LoopOnce);
-                hitAction.clampWhenFinished = false;
-                this.animator.switchAnimation(hitAction)
-                const mixer = hitAction.getMixer()
-                // 添加被连续攻击的情况（不会回复到idle，而是一直被攻击）
-                const onFinished = (e) => {
-                    if (e.action === hitAction) {
-                        this.isPlayingLockedAnimation = false; // 设置锁定标记
+            this.isPlayingLockedAnimation = true;
+            hitAction.setLoop(THREE.LoopOnce);
+            hitAction.clampWhenFinished = false;
+            this.animator.switchAnimation(hitAction);
+            this.currentAction = hitAction;
+
+            const mixer = hitAction.getMixer();
+            const onFinished = (e) => {
+                if (e.action === hitAction) {
+                    this.isPlayingLockedAnimation = false;
+                    if (!this.isDead) {
                         this.transitionTo(CharacterStates.IDLE);
-                        mixer.removeEventListener('finished', onFinished);
                     }
-                };
-                mixer.addEventListener('finished', onFinished);
-            }
+                    mixer.removeEventListener('finished', onFinished);
+                }
+            };
+            mixer.addEventListener('finished', onFinished);
         }
+    }
 
-        if (newState === CharacterStates.DEATH) {
-            const dieAction = this.animator.actions.get(CharacterStates.DEATH);
-            if (this.currentAction && this.currentAction !== dieAction) {
-                this.currentAction.fadeOut(0.2);
-            }
-            if (dieAction) {
-                dieAction.setLoop(THREE.LoopOnce);
-                dieAction.clampWhenFinished = true;
-                this.animator.switchAnimation(dieAction)
-
-            }
-        }
-
+    // 添加一个重置方法
+    reset() {
+        this.isDead = false;
+        this.isPlayingLockedAnimation = false;
+        this.currentState = CharacterStates.IDLE;
+        this.animator.actions.forEach(action => {
+            action.stop();
+        });
+        this.transitionTo(CharacterStates.IDLE);
     }
 }
