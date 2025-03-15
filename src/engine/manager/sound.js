@@ -65,13 +65,10 @@ export class Sound {
 
     // 播放音频
     playSound(key) {
-        console.log('key', key);
         const track = this.tracks.get(key)        
-        console.log(this.tracks);
         
         const index = randomInt(track.length)
         track[index].currentTime = 0
-        console.log(track[index]);
         track[index].play()
     }
 }

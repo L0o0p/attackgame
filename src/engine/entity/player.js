@@ -1,7 +1,6 @@
 // 集成角色模型网格、动画、状态管理
 import * as THREE from 'three';
 import { Character } from './character';
-import { JoystickController } from '../controls/touch-controls';
 
 export class Player extends Character {
     constructor(
@@ -30,17 +29,12 @@ export class Player extends Character {
         this.physics = physics
         this.createBody()
 
-        // 添加遥感控制状态
-        this.joystickInput = {
-            x: 0,
-            y: 0,
-            active: false
-        };
-
-        // 初始化遥感
-        this.initJoystick();
     }
     createBody() {
+        if (!this.physics || typeof this.physics.createPlayer !== 'function') {
+            console.error('Physics system or createPlayer method not properly initialized:', this.physics);
+            return;
+        }
         this.physics.createPlayer(this.mesh)
     }
 
@@ -55,40 +49,18 @@ export class Player extends Character {
         this.sword.visible = true;
         this.hasSword = true;
     }
-    initJoystick() {
-        const joystick = new JoystickController({
-            size: 120,
-            position: { left: '40px', bottom: '40px' },
-            onChange: (data) => {
-                // 更新遥感输入状态
-                this.joystickInput.x = data.x;
-                this.joystickInput.y = data.y;
-                this.joystickInput.active = data.active;
-            }
-        });
-    }
+
     // 角色移动
-    moveCharacter() {
-        const keys = this.keys;
+    moveCharacter(movementVetor) {
+        if(movementVetor.x==0 && movementVetor.z==0){
+            return;
+        }
         const speed = this.attributes.speed;
         const rotationSpeed = this.attributes.rotationSpeed;
         const linvel = this.physics.characterBody.linvel();
-
-        let moveX = 0;
-        let moveZ = 0;
-
-        // 合并键盘和遥感输入
-        if (this.joystickInput.active) {
-            // 使用遥感输入
-            moveX = this.joystickInput.x * speed;
-            moveZ = this.joystickInput.y * speed;
-        } else {
-            // 使用键盘输入
-            if (keys.w) moveZ -= speed;
-            if (keys.s) moveZ += speed;
-            if (keys.a) moveX -= speed;
-            if (keys.d) moveX += speed;
-        }
+        
+        let moveX = movementVetor.x * speed;
+        let moveZ = movementVetor.z * speed;
 
         // 如果有移动输入
         if (moveX !== 0 || moveZ !== 0) {
@@ -115,10 +87,14 @@ export class Player extends Character {
     }
 
     // 改写
-    updateCharacter() {
-        // 【目标如果已死亡，就不要再让它切换动画】
-        super.updateCharacter()
-        this.moveCharacter()
+    updateAll(areaBoxes, movementVetor,state) {
+        super.updateAll(areaBoxes);
+        this.moveCharacter(movementVetor);
+        this.updateState(state)
+    }
+
+    updateState(state) {
+        this.stateMachine.transitionTo(state)
     }
 
 }

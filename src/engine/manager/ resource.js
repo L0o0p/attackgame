@@ -1,7 +1,8 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { stepSounds } from '../engine';
 import { Sound } from './sound';
+import { CharacterStates, stepSounds } from '../game-config'
+
 export class ResourceLoader {
     constructor(camera,loadingScreen) {
         this.resources = new Map();

@@ -1,7 +1,7 @@
+import * as THREE from 'three'
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js'
 import { Enemy } from '../entity/enemy';
-import { CharacterStates } from '../engine';
-import * as THREE from 'three'
+import { CharacterStates, stepSounds } from '../game-config'
 
 export class EnemyManager {
     constructor(model, scene, player, maxEnemies = 50,game) {
@@ -79,7 +79,7 @@ export class EnemyManager {
         enemy.characterObj.mesh.visible = true;
 
         // 重置动画状态
-        enemy.characterObj.transitionTo(CharacterStates.IDLE);
+        enemy.characterObj.stateMachine.transitionTo(CharacterStates.IDLE);
 
         this.activeEnemies.push(enemy);
         this.game.allNpc.push(enemy.characterObj)

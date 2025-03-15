@@ -16,7 +16,7 @@
 3. 让音频和动画挂钩，播放动画的时候自动播放音频，实现：
 
   syncAnimSound() {
-    this.animator.on(ATTACK, 'half', () => {
+    this.animator(ATTACK, 'half', () => {
       this.sound.play(YELL)
     })
     this.animator.on(RUN, 'loop', () => {

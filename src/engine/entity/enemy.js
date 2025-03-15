@@ -1,6 +1,6 @@
-import { Character } from "./character";
-import { CharacterStates } from "../engine";
 import * as THREE from 'three';
+import { Character } from "./character";
+import { CharacterStates, stepSounds } from '../game-config'
 
 export class Enemy extends Character {
     constructor(
@@ -42,7 +42,7 @@ export class Enemy extends Character {
         }
         // 否则保持空闲状态
         else if (distanceToPlayer > this.detectionRange) {
-            this.transitionTo(CharacterStates.IDLE);
+            this.stateMachine.transitionTo(CharacterStates.IDLE);
         }
 
         // 更新攻击冷却
@@ -56,7 +56,7 @@ export class Enemy extends Character {
     }
 
     attack(player, game) {
-        this.transitionTo(CharacterStates.ATTACK);
+        this.stateMachine.transitionTo(CharacterStates.ATTACK);
         this.attackCooldown = this.maxAttackCooldown;
 
         // 造成伤害
@@ -65,7 +65,7 @@ export class Enemy extends Character {
     }
 
     moveTowardsPlayer(player) {
-        this.transitionTo(CharacterStates.WALK);
+        this.stateMachine.transitionTo(CharacterStates.WALK);
 
         // 计算方向向量
         const direction = new THREE.Vector3()

@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { UI } from '../ui/ui';
 import { Enemy } from './entity/enemy';
 import { Player } from './entity/player';
@@ -9,55 +8,37 @@ import { Sound } from './manager/sound';
 import { Mesh, AnimationMixer, AnimationClip, LoopOnce } from 'three';
 import overwrite from './overwrite';
 overwrite(Mesh, AnimationMixer, AnimationClip, LoopOnce);
-import {Area} from './manager/area'
-import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js'
+import { Area } from './manager/area'
 import { EnemyManager } from './manager/enemyManager';
 import { SnowFieldSystem } from './manager/snow-track'
-import { TouchButton } from './controls/touch-button';
+import { TouchButton } from '../ui/controls/touch-button'
 import { LoadingScreen } from "./manager/ resource";
 import { ResourceLoader } from "./manager/ resource";
+import { CharacterStates, stepSounds } from './game-config'
+import { InputSystem } from './manager/InputSystem'
+import { CombatEventSystem } from './manager/eventManager';
 
-export const CharacterStates = {
-    IDLE: 'idle',
-    WALK: 'walk',
-    ATTACK: 'attack',
-    ATTACKWITHSWORD: 'attackwithsword',
-    HIT: 'hit',
-    DEATH: 'die'
-};
-
-export const stepSounds = {
-    WALK : {
-        soil: 'sounds/walkLightly.wav',
-        water: 'sounds/walkWater.mp3',
-        wood: 'sounds/walkHeavy.wav'
-    },
-    ATTACK :'sounds/attack.mp3',
-    ATTACKWITHSWORD :'sounds/attackWithSword.mp3',
-    HIT: 'sounds/hit.mp3',
-    GETSWORD: 'sounds/getSword.mp3',
-    HEALUP: 'sounds/healUp.mp3'
-}
 
 export class Game {
     constructor() {
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        // 创建加载界面
-        this.loadingScreen = new LoadingScreen();
-        // 创建资源加载器
-        this.resourceLoader = new ResourceLoader(this.camera,this.loadingScreen);
-        // 初始化游戏
-        this.init();
-
         // 场景和摄像机
         // 初始化场景
+        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.scene = new THREE.Scene();
         this.renderer = new THREE.WebGLRenderer();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(this.renderer.domElement);
         this.cameraTarget = null;// playerMesh
-        this.cameraOffset = new THREE.Vector3(0, 1.8, 1);
+        this.cameraOffset = new THREE.Vector3(0, 3, 5);
+        // this.cameraOffset = new THREE.Vector3(0, 1.8, 1);
         this.smoothness = 0.1; // 相机移动平滑度
+
+        // 创建加载界面
+        this.loadingScreen = new LoadingScreen();
+        // 创建资源加载器
+        this.resourceLoader = new ResourceLoader(this.camera, this.loadingScreen);
+        // 初始化游戏
+        this.init();
 
         // 可收集物品数组
         this.collectibles = [];
@@ -71,7 +52,7 @@ export class Game {
         this.playerState = {
             velocity: new THREE.Vector3(),
             speed: 3,
-            rotationSpeed:0.2,
+            rotationSpeed: 0.2,
             characterState: CharacterStates.IDLE,
             maxHealth: 100,
             currentHealth: 100,
@@ -88,8 +69,8 @@ export class Game {
         this.objectMap = new Map();
 
         // // 键盘输入
-        // this.keys = {};
         // 控制角色
+        this.input = new InputSystem()
         this.keys = { w: false, a: false, s: false, d: false };
         this.moveSpeed = 3;
         this.rotationSpeed = 0.1;
@@ -101,7 +82,7 @@ export class Game {
         this.sound = this.resourceLoader.sound
         this.areaMeshes = [];
         this.areaBoxes = []
-        this.enemyManager =null
+        this.enemyManager = null
         this.deathY = -10; // 死亡高度阈值
         this.spawnPoint = { x: 0, y: 5, z: 0 }; // 出生点位置
 
@@ -118,7 +99,7 @@ export class Game {
                 if (this.playerState.characterState === CharacterStates.DEATH) return;
 
                 // 触发攻击状态转换
-                this.player.transitionTo(CharacterStates.ATTACK);
+                this.player.stateMachine.transitionTo(CharacterStates.ATTACK);
             }
         });
 
@@ -126,8 +107,8 @@ export class Game {
         this.animate = this.animate.bind(this);
         this.checkAttack = this.checkAttack.bind(this);
         this.onWindowResize = this.onWindowResize.bind(this);
-        this.boundKeyDown = this.handleKeyDown.bind(this);
-        this.boundKeyUp = this.handleKeyUp.bind(this);
+        // this.boundKeyDown = this.handleKeyDown.bind(this);
+        // this.boundKeyUp = this.handleKeyUp.bind(this);
     }
 
     async init() {
@@ -163,7 +144,7 @@ export class Game {
         const swordData = this.resourceLoader.getResource('sword')
         const hamburgerData = this.resourceLoader.getResource('hamburger')
         const sceneData = this.resourceLoader.getResource('scene')
-        
+
         const swordObject = playerData.scene.getObjectByName("sword");
         swordObject.position.add({ x: 0.2, y: 0.09, z: -0.2 });
         swordObject.visible = false;
@@ -171,7 +152,7 @@ export class Game {
         // 设置玩家和目标
         this.playerMesh = playerData.scene;
         const sceneMesh = sceneData.scene
-        .rotateY(Math.PI / 2);
+            .rotateY(Math.PI / 2);
         const healMesh = hamburgerData.scene;
 
         const swordMesh = swordData.scene;
@@ -198,7 +179,7 @@ export class Game {
         // 物理世界a
         this.sortObjects(sceneMesh)
 
-        this.initArea() 
+        this.initArea()
         this.visualizeAreas()
 
         this.physics = new PhysicsSystem(
@@ -223,10 +204,10 @@ export class Game {
             , this.keys
             , swordObject
             , this.physics
-            ,this.sound
+            , this.sound
         )
 
-        this.enemyManager = new EnemyManager(npcData, this.scene, this.player, 10,this)
+        this.enemyManager = new EnemyManager(npcData, this.scene, this.player, 10, this)
 
 
         this.saveOriginalColors()
@@ -237,13 +218,13 @@ export class Game {
         this.scene.add(this.player.mesh);
 
         this.cameraTarget = this.player.mesh;// playerMesh
-        
-        this.camera.lookAt(this.cameraTarget.position.x, this.cameraTarget.position.y+2, this.cameraTarget.position.z);
+
+        this.camera.lookAt(this.cameraTarget.position.x, this.cameraTarget.position.y + 2, this.cameraTarget.position.z);
 
         this.enemyManager.spawnWave(5, this.radius); // 生成5个敌人，半径30米
 
         this.timeSinceLastWave = 0;     // 自上次生成敌人以来经过的时间
-        this.waveInterval = 10/2;         // 生成敌人的时间间隔（秒）
+        this.waveInterval = 10 / 2;         // 生成敌人的时间间隔（秒）
         this.gameLevel = 1;             // 游戏难度级别
         this.minimumEnemyCount = 5;     // 最小敌人数量
         this.enemyWaveClock = new THREE.Clock(); // 专门用于敌人生成的时钟
@@ -254,34 +235,10 @@ export class Game {
         //     renderer: this.renderer,
         //     debugObject: this.player.mesh
         // });
+
         // 添加事件监听
         this.addEventListeners();
     }
-
-    // async loadResource() {
-    //     const loader = new GLTFLoader();
-    //     const [playerData, npcData, swordData, hamburgerData, sceneData] = await Promise.all([
-    //         loader.loadAsync('/models/PlayerWithSword.glb'),
-    //         loader.loadAsync('/models/gamelike.glb'),
-    //         loader.loadAsync('/models/swordR.glb'),
-    //         loader.loadAsync('/models/hamburger.glb'),
-    //         loader.loadAsync('/models/lowPolyScene.glb'),
-    //     ]);
-    //     this.resources.set('player', playerData)
-    //     this.resources.set('npc', npcData)
-    //     this.resources.set('sword', swordData)
-    //     this.resources.set('hamburger', hamburgerData)
-    //     this.resources.set('scene', sceneData)
-
-    //     await this.sound.loadSound(stepSounds.ATTACK);
-    //     await this.sound.loadSound(stepSounds.ATTACKWITHSWORD);
-    //     await this.sound.loadSound(stepSounds.HIT);
-    //     await this.sound.loadSound(stepSounds.WALK.soil);
-    //     await this.sound.loadSound(stepSounds.WALK.water);
-    //     await this.sound.loadSound(stepSounds.WALK.wood);
-    //     await this.sound.loadSound(stepSounds.GETSWORD);
-    //     await this.sound.loadSound(stepSounds.HEALUP); 
-    // }
 
     // 分拣glb载入的场景中的物体
     sortObjects(sceneMesh) {
@@ -309,7 +266,7 @@ export class Game {
     }
 
     initArea() {
-        this.areaMeshes.forEach( mesh => {
+        this.areaMeshes.forEach(mesh => {
             this.areaBoxes.push(new Area(mesh))
         });
     }
@@ -351,7 +308,7 @@ export class Game {
         const collectibleMesh = new THREE.Mesh(geometry, material);
 
         const attributes = {
-            damage: 10,
+            damage: 100,
         }
         function generateRandomItem() {
             const random = Math.random(); // 生成0-1之间的随机数
@@ -472,7 +429,7 @@ export class Game {
 
     applyDamage(damagedCharacter, damageValue) {// 应用伤害
         damagedCharacter.attributes.currentHealth = Math.max(0, damagedCharacter.attributes.currentHealth - damageValue);
-        if (damagedCharacter.attributes.currentHealth <= 0) damagedCharacter.transitionTo('die')
+        if (damagedCharacter.attributes.currentHealth <= 0) damagedCharacter.stateMachine.transitionTo('die')
         this.ui.updateHealthBars();
     }
 
@@ -563,7 +520,7 @@ export class Game {
             particles.push({ mesh: particle, velocity });
         }
     }
-    
+
     setupLights() {
         const light = new THREE.PointLight(0xffffff, 100, 100);
         light.position.set(0, 10, 10);
@@ -575,30 +532,11 @@ export class Game {
 
     addEventListeners() {
         document.addEventListener('keydown', this.boundKeyDown);
-        document.addEventListener('keyup', this.boundKeyUp);
-        window.addEventListener('resize', this.onWindowResize);
-    }
-
-    handleKeyDown(event) {
-        this.keys[event.key.toLowerCase()] = true;
-        // 如果角色死亡就直接返回
-        if (this.playerState.characterState === CharacterStates.DEATH) return
-        if (event.code === 'Space') {
-            this.player.transitionTo(CharacterStates.ATTACK);
-        }
-        if (['w', 'a', 's', 'd'].includes(event.key.toLowerCase())) {
-            this.player.transitionTo(CharacterStates.WALK);
-        }
-    }
-
-    handleKeyUp(event) {
-        this.keys[event.key.toLowerCase()] = false;
-
-        // 当没有移动键被按下时，切换回空闲状态
-        const isAnyMovementKeyPressed = ['w', 'a', 's', 'd'].some(key => this.keys[key]);
-        if (!isAnyMovementKeyPressed && this.playerState.characterState === CharacterStates.WALK) {
-            this.player.transitionTo(CharacterStates.IDLE);
-        }
+        // document.addEventListener('keyup', this.boundKeyUp);
+        // window.addEventListener('resize', this.onWindowResize);
+        // 事件监听
+        window.addEventListener('keydown', (e) => this.input.handleKeyDown(e));
+        window.addEventListener('keyup', (e) => this.input.handleKeyUp(e));
     }
 
     checkAttack() {
@@ -625,7 +563,7 @@ export class Game {
 
                     // 使用正确的模型引用播放动画
                     // npc.switchAnimation('hit');
-                    npc.transitionTo('hit');
+                    npc.stateMachine.transitionTo('hit');
 
                     this.applyDamage(npc, actualDamage)
                 }
@@ -648,7 +586,7 @@ export class Game {
                     // this.player.mesh.position.add(knockbackDirection);
 
                     // 使用正确的模型引用播放动画
-                    this.player.transitionTo('hit');
+                    this.player.stateMachine.transitionTo('hit');
                 }
             }
         })
@@ -657,8 +595,9 @@ export class Game {
 
     animate() {
         requestAnimationFrame(this.animate);
-
-        this.player.updateAll(this.areaBoxes)
+        const movementVector = this.input.calculateMovementVector();
+        const state = this.input.getState()
+        this.player.updateAll(this.areaBoxes, movementVector,state)
         this.checkCollisions()
         this.allNpc.forEach(npc => {
             npc.updateBehavior(this.player, this);
@@ -734,7 +673,7 @@ export class Game {
         try {
             await this.initializeGameScene();
             this.animate();
-            
+
         } catch (error) {
             console.error('Game initialization failed:', error);
         }
